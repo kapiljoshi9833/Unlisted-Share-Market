@@ -1,9 +1,34 @@
-﻿node_modules/
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Environment Variables & Secrets
 .env
-.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# Production Builds
 dist/
 build/
-*.log
+
+# Logs & Cache
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+.eslintcache
+
+# OS Metadata
 .DS_Store
 Thumbs.db
+
+# Database Local Backups
+database/backup_initial.sql

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-// GET /api/debentures - List all debentures
+// GET /api/debentures - List all debentures with company details
 router.get('/', async (req, res) => {
   try {
     const [debentures] = await db.query(`
@@ -10,15 +10,19 @@ router.get('/', async (req, res) => {
         d.debenture_id,
         d.company_id,
         c.company_name,
+        c.sector,
         d.debenture_name,
         d.face_value,
         d.interest_rate,
         d.issue_quantity,
-        d.maturity_date,
-        d.issue_date,
+        ROUND(d.issue_quantity * d.face_value, 2) AS total_issue_capital,
+        ROUND((d.issue_quantity * d.face_value * d.interest_rate) / 100, 2) AS annual_interest_payout,
+        DATE_FORMAT(d.issue_date, '%Y-%m-%d') AS issue_date,
+        DATE_FORMAT(d.maturity_date, '%Y-%m-%d') AS maturity_date,
+        DATEDIFF(d.maturity_date, CURDATE()) AS days_to_maturity,
         d.status
-      FROM Debentures d
-      JOIN Companies c ON d.company_id = c.company_id
+      FROM debentures d
+      JOIN companies c ON d.company_id = c.company_id
       ORDER BY d.debenture_id ASC
     `);
     res.status(200).json(debentures);
@@ -36,9 +40,10 @@ router.get('/:id', async (req, res) => {
       SELECT 
         d.*,
         c.company_name,
-        c.sector
-      FROM Debentures d
-      JOIN Companies c ON d.company_id = c.company_id
+        c.sector,
+        ROUND(d.issue_quantity * d.face_value, 2) AS total_issue_capital
+      FROM debentures d
+      JOIN companies c ON d.company_id = c.company_id
       WHERE d.debenture_id = ?
     `, [id]);
 
@@ -72,26 +77,26 @@ router.post('/', async (req, res) => {
     }
 
     const [result] = await db.query(`
-      INSERT INTO Debentures (company_id, debenture_name, face_value, interest_rate, issue_quantity, maturity_date, issue_date, status)
+      INSERT INTO debentures (company_id, debenture_name, face_value, interest_rate, issue_quantity, maturity_date, issue_date, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       company_id, 
-      debenture_name, 
-      face_value, 
-      interest_rate, 
-      issue_quantity, 
+      debenture_name.trim(), 
+      Number(face_value), 
+      Number(interest_rate), 
+      Number(issue_quantity), 
       maturity_date, 
       issue_date, 
       status || 'Active'
     ]);
 
     res.status(201).json({
-      message: 'Debenture created successfully',
+      message: 'Debenture issued successfully',
       debenture_id: result.insertId
     });
   } catch (err) {
     console.error('Error creating debenture:', err);
-    res.status(500).json({ error: 'Failed to create debenture record' });
+    res.status(500).json({ error: err.message || 'Failed to create debenture record' });
   }
 });
 

@@ -8,31 +8,33 @@ router.get('/', async (req, res) => {
     const [transactions] = await db.query(`
       SELECT 
         t.transaction_id,
+        t.buyer_id,
         t.buy_id,
+        ub.name AS buyer_name,
+        t.seller_id,
         t.sell_id,
+        us.name AS seller_name,
         t.share_id,
         c.company_name,
         s.share_type,
-        u_buy.name AS buyer_name,
-        u_sell.name AS seller_name,
         t.quantity,
         t.price,
-        (t.quantity * t.price) AS total_value,
+        ROUND(t.quantity * t.price, 2) AS total_value,
         t.transaction_time,
         'COMPLETED' AS status
-      FROM Transactions t
-      JOIN Buy b ON t.buy_id = b.buy_id
-      JOIN Sell sl ON t.sell_id = sl.sell_id
-      JOIN Users u_buy ON b.user_id = u_buy.user_id
-      JOIN Users u_sell ON sl.user_id = u_sell.user_id
-      JOIN Shares s ON t.share_id = s.share_id
-      JOIN Companies c ON s.company_id = c.company_id
-      ORDER BY t.transaction_id DESC
+      FROM transactions t
+      JOIN buy b ON (t.buyer_id = b.user_id AND t.buy_id = b.buy_id)
+      JOIN sell sl ON (t.seller_id = sl.user_id AND t.sell_id = sl.sell_id)
+      JOIN users ub ON t.buyer_id = ub.user_id
+      JOIN users us ON t.seller_id = us.user_id
+      JOIN shares s ON t.share_id = s.share_id
+      JOIN companies c ON s.company_id = c.company_id
+      ORDER BY t.transaction_time DESC, t.transaction_id DESC
     `);
     res.status(200).json(transactions);
   } catch (err) {
     console.error('Error fetching transactions:', err);
-    res.status(500).json({ error: 'Failed to fetch transactions' });
+    res.status(500).json({ error: 'Failed to fetch transaction records' });
   }
 });
 
@@ -43,32 +45,33 @@ router.get('/user/:userId', async (req, res) => {
     const [transactions] = await db.query(`
       SELECT 
         t.transaction_id,
+        t.buyer_id,
         t.buy_id,
+        ub.name AS buyer_name,
+        t.seller_id,
         t.sell_id,
+        us.name AS seller_name,
         t.share_id,
         c.company_name,
         s.share_type,
-        u_buy.name AS buyer_name,
-        u_sell.name AS seller_name,
         t.quantity,
         t.price,
-        (t.quantity * t.price) AS total_value,
-        t.transaction_time
-      FROM Transactions t
-      JOIN Buy b ON t.buy_id = b.buy_id
-      JOIN Sell sl ON t.sell_id = sl.sell_id
-      JOIN Users u_buy ON b.user_id = u_buy.user_id
-      JOIN Users u_sell ON sl.user_id = u_sell.user_id
-      JOIN Shares s ON t.share_id = s.share_id
-      JOIN Companies c ON s.company_id = c.company_id
-      WHERE b.user_id = ? OR sl.user_id = ?
-      ORDER BY t.transaction_id DESC
-    `, [userId, userId]);
+        ROUND(t.quantity * t.price, 2) AS total_value,
+        t.transaction_time,
+        CASE WHEN t.buyer_id = ? THEN 'BOUGHT' ELSE 'SOLD' END AS user_action
+      FROM transactions t
+      JOIN users ub ON t.buyer_id = ub.user_id
+      JOIN users us ON t.seller_id = us.user_id
+      JOIN shares s ON t.share_id = s.share_id
+      JOIN companies c ON s.company_id = c.company_id
+      WHERE t.buyer_id = ? OR t.seller_id = ?
+      ORDER BY t.transaction_time DESC, t.transaction_id DESC
+    `, [userId, userId, userId]);
 
     res.status(200).json(transactions);
   } catch (err) {
     console.error('Error fetching user transactions:', err);
-    res.status(500).json({ error: 'Failed to fetch user transactions' });
+    res.status(500).json({ error: 'Failed to fetch user transaction history' });
   }
 });
 
@@ -81,15 +84,14 @@ router.get('/:id', async (req, res) => {
         t.*,
         c.company_name,
         s.share_type,
-        u_buy.name AS buyer_name,
-        u_sell.name AS seller_name
-      FROM Transactions t
-      JOIN Buy b ON t.buy_id = b.buy_id
-      JOIN Sell sl ON t.sell_id = sl.sell_id
-      JOIN Users u_buy ON b.user_id = u_buy.user_id
-      JOIN Users u_sell ON sl.user_id = u_sell.user_id
-      JOIN Shares s ON t.share_id = s.share_id
-      JOIN Companies c ON s.company_id = c.company_id
+        ub.name AS buyer_name,
+        us.name AS seller_name,
+        ROUND(t.quantity * t.price, 2) AS total_value
+      FROM transactions t
+      JOIN users ub ON t.buyer_id = ub.user_id
+      JOIN users us ON t.seller_id = us.user_id
+      JOIN shares s ON t.share_id = s.share_id
+      JOIN companies c ON s.company_id = c.company_id
       WHERE t.transaction_id = ?
     `, [id]);
 
@@ -99,31 +101,34 @@ router.get('/:id', async (req, res) => {
 
     res.status(200).json(rows[0]);
   } catch (err) {
-    console.error('Error fetching transaction:', err);
+    console.error('Error fetching transaction details:', err);
     res.status(500).json({ error: 'Failed to fetch transaction details' });
   }
 });
 
 // POST /api/match (or POST /api/transactions/match) - ORDER MATCHING ENGINE
+// Academic Highlight: Implements atomic ACID matching, row-level locking,
+// partial fills, price-time priority, and foreign key weak entity linkage.
 router.post('/match', async (req, res) => {
   let connection;
   try {
-    // Acquire dedicated connection from pool for atomic MySQL Transaction
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // 1. Fetch open SELL orders (asks) - best price first
+    // 1. Fetch active SELL orders (asks) - lowest price first (Price-Time priority)
     const [openSells] = await connection.query(`
-      SELECT * FROM Sell 
+      SELECT * FROM sell 
       WHERE sell_status IN ('PENDING', 'PARTIAL') AND remaining_quantity > 0
       ORDER BY price ASC, created_at ASC
+      FOR UPDATE
     `);
 
-    // 2. Fetch open BUY orders (bids) - highest bid first
+    // 2. Fetch active BUY orders (bids) - highest price first (Price-Time priority)
     const [openBuys] = await connection.query(`
-      SELECT * FROM Buy 
+      SELECT * FROM buy 
       WHERE buy_status IN ('PENDING', 'PARTIAL') AND remaining_quantity > 0
       ORDER BY price DESC, created_at ASC
+      FOR UPDATE
     `);
 
     const createdTransactions = [];
@@ -135,62 +140,73 @@ router.post('/match', async (req, res) => {
       for (let buy of openBuys) {
         if (buy.remaining_quantity <= 0) continue;
 
-        // Condition: Same security and buyer bid >= seller ask
-        if (buy.share_id === sell.share_id && Number(buy.price) >= Number(sell.price)) {
+        // Matching conditions:
+        // a) Same security class
+        // b) Buyer bid >= Seller ask
+        // c) Different participants (cannot trade with oneself)
+        if (
+          buy.share_id === sell.share_id &&
+          Number(buy.price) >= Number(sell.price) &&
+          buy.user_id !== sell.user_id
+        ) {
           const matchQuantity = Math.min(buy.remaining_quantity, sell.remaining_quantity);
-          const executionPrice = sell.price; // Fill at seller's listed ask
+          const executionPrice = Number(sell.price); // Execution at seller's listed ask
 
           // Deduct quantities
           buy.remaining_quantity -= matchQuantity;
           sell.remaining_quantity -= matchQuantity;
 
-          // Status updates
+          // Determine updated statuses
           const newBuyStatus = buy.remaining_quantity === 0 ? 'COMPLETED' : 'PARTIAL';
           const newSellStatus = sell.remaining_quantity === 0 ? 'COMPLETED' : 'PARTIAL';
 
-          // A. Insert into Transactions table
+          // A. Insert into transactions table with weak entity foreign keys (buyer_id, buy_id) and (seller_id, sell_id)
           const [txnResult] = await connection.query(`
-            INSERT INTO Transactions (buy_id, sell_id, share_id, quantity, price, transaction_time)
-            VALUES (?, ?, ?, ?, ?, NOW())
-          `, [buy.buy_id, sell.sell_id, buy.share_id, matchQuantity, executionPrice]);
+            INSERT INTO transactions (buyer_id, buy_id, seller_id, sell_id, share_id, quantity, price, transaction_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+          `, [buy.user_id, buy.buy_id, sell.user_id, sell.sell_id, buy.share_id, matchQuantity, executionPrice]);
 
-          // B. Update Buy order
+          // B. Update Buy order (weak entity identified by user_id and buy_id)
           await connection.query(`
-            UPDATE Buy 
+            UPDATE buy 
             SET remaining_quantity = ?, buy_status = ? 
-            WHERE buy_id = ?
-          `, [buy.remaining_quantity, newBuyStatus, buy.buy_id]);
+            WHERE user_id = ? AND buy_id = ?
+          `, [buy.remaining_quantity, newBuyStatus, buy.user_id, buy.buy_id]);
 
-          // C. Update Sell order
+          // C. Update Sell order (weak entity identified by user_id and sell_id)
           await connection.query(`
-            UPDATE Sell 
+            UPDATE sell 
             SET remaining_quantity = ?, sell_status = ? 
-            WHERE sell_id = ?
-          `, [sell.remaining_quantity, newSellStatus, sell.sell_id]);
+            WHERE user_id = ? AND sell_id = ?
+          `, [sell.remaining_quantity, newSellStatus, sell.user_id, sell.sell_id]);
 
-          // D. Update Buyer user holdings
+          // D. Update Buyer portfolio holdings
           await connection.query(`
-            UPDATE Users 
+            UPDATE users 
             SET share_id = ?, shares_owned = shares_owned + ? 
             WHERE user_id = ?
           `, [buy.share_id, matchQuantity, buy.user_id]);
 
-          // E. Update Seller user holdings (ensure it does not go below zero)
+          // E. Update Seller portfolio holdings (safely floor at zero)
           await connection.query(`
-            UPDATE Users 
+            UPDATE users 
             SET shares_owned = GREATEST(0, shares_owned - ?) 
             WHERE user_id = ?
           `, [matchQuantity, sell.user_id]);
 
           createdTransactions.push({
             transaction_id: txnResult.insertId,
+            buyer_id: buy.user_id,
             buy_id: buy.buy_id,
+            seller_id: sell.user_id,
             sell_id: sell.sell_id,
             share_id: buy.share_id,
             quantity: matchQuantity,
-            price: executionPrice
+            price: executionPrice,
+            total_value: Number((matchQuantity * executionPrice).toFixed(2))
           });
 
+          // If this sell order has been fully filled, advance to next sell order
           if (sell.remaining_quantity === 0) break;
         }
       }
@@ -200,17 +216,17 @@ router.post('/match', async (req, res) => {
     await connection.commit();
 
     res.status(200).json({
-      message: createdTransactions.length > 0 
-        ? `Successfully matched and executed ${createdTransactions.length} transaction(s)`
-        : 'No compatible orders found for matching at current bid/ask prices',
+      message: createdTransactions.length > 0
+        ? `Successfully executed and settled ${createdTransactions.length} transaction(s)`
+        : 'No crossing orders found at current bid/ask spreads',
       matched_count: createdTransactions.length,
       transactions: createdTransactions
     });
 
   } catch (err) {
     if (connection) await connection.rollback();
-    console.error('Matching engine transaction rolled back:', err);
-    res.status(500).json({ error: 'Order matching transaction failed and was rolled back' });
+    console.error('Order matching failed and was rolled back:', err);
+    res.status(500).json({ error: 'Order matching engine transaction failed: ' + (err.message || 'unknown error') });
   } finally {
     if (connection) connection.release();
   }

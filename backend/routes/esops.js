@@ -10,17 +10,22 @@ router.get('/', async (req, res) => {
         e.esop_id,
         e.user_id,
         u.name AS employee_name,
+        u.email AS employee_email,
         e.company_id,
         c.company_name,
         e.number_of_options,
         e.exercise_price,
+        ROUND(e.number_of_options * e.exercise_price, 2) AS total_exercise_value,
+        s.current_price AS current_share_price,
+        ROUND(e.number_of_options * (COALESCE(s.current_price, 0) - e.exercise_price), 2) AS unrealized_gain,
         e.vesting_period,
         e.exercise_status,
-        e.grant_date,
-        e.expiry_date
-      FROM ESOPs e
-      JOIN Users u ON e.user_id = u.user_id
-      JOIN Companies c ON e.company_id = c.company_id
+        DATE_FORMAT(e.grant_date, '%Y-%m-%d') AS grant_date,
+        DATE_FORMAT(e.expiry_date, '%Y-%m-%d') AS expiry_date
+      FROM esops e
+      JOIN users u ON e.user_id = u.user_id
+      JOIN companies c ON e.company_id = c.company_id
+      LEFT JOIN shares s ON c.company_id = s.company_id
       ORDER BY e.esop_id ASC
     `);
     res.status(200).json(esops);
@@ -42,12 +47,16 @@ router.get('/user/:userId', async (req, res) => {
         c.company_name,
         e.number_of_options,
         e.exercise_price,
+        ROUND(e.number_of_options * e.exercise_price, 2) AS total_exercise_value,
+        s.current_price AS current_share_price,
+        ROUND(e.number_of_options * (COALESCE(s.current_price, 0) - e.exercise_price), 2) AS unrealized_gain,
         e.vesting_period,
         e.exercise_status,
-        e.grant_date,
-        e.expiry_date
-      FROM ESOPs e
-      JOIN Companies c ON e.company_id = c.company_id
+        DATE_FORMAT(e.grant_date, '%Y-%m-%d') AS grant_date,
+        DATE_FORMAT(e.expiry_date, '%Y-%m-%d') AS expiry_date
+      FROM esops e
+      JOIN companies c ON e.company_id = c.company_id
+      LEFT JOIN shares s ON c.company_id = s.company_id
       WHERE e.user_id = ?
       ORDER BY e.esop_id ASC
     `, [userId]);
@@ -78,13 +87,13 @@ router.post('/', async (req, res) => {
     }
 
     const [result] = await db.query(`
-      INSERT INTO ESOPs (user_id, company_id, number_of_options, exercise_price, vesting_period, exercise_status, grant_date, expiry_date)
+      INSERT INTO esops (user_id, company_id, number_of_options, exercise_price, vesting_period, exercise_status, grant_date, expiry_date)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       user_id, 
       company_id, 
-      number_of_options, 
-      exercise_price, 
+      Number(number_of_options), 
+      Number(exercise_price), 
       vesting_period || '36 Months (Graded)', 
       exercise_status || 'Unvested', 
       grant_date, 
@@ -97,7 +106,7 @@ router.post('/', async (req, res) => {
     });
   } catch (err) {
     console.error('Error creating ESOP:', err);
-    res.status(500).json({ error: 'Failed to create ESOP record' });
+    res.status(500).json({ error: err.message || 'Failed to create ESOP record' });
   }
 });
 
