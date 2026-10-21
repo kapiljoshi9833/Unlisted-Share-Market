@@ -9,33 +9,36 @@ router.post('/signup', async (req, res) => {
     const { name, email, password, role } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
+      return res.status(400).json({ error: 'Full name, email, and password are required.' });
     }
 
     const trimmedEmail = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
-      return res.status(400).json({ error: 'Please enter a valid email address' });
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
-    // Check if email already registered
+    // Check if email already registered in MySQL users table
     const [existing] = await db.query(
-      'SELECT user_id FROM users WHERE email = ?',
+      'SELECT user_id, name FROM users WHERE email = ?',
       [trimmedEmail]
     );
 
     if (existing.length > 0) {
-      return res.status(409).json({ error: 'Email is already registered on the terminal' });
+      return res.status(409).json({ 
+        error: `This email (${trimmedEmail}) is already registered on VALENCE-X. Please switch to Sign In.` 
+      });
     }
 
     // Hash password with bcryptjs
     const hashedPassword = await bcrypt.hash(password, 10);
     const assignedRole = role || 'Investor';
 
+    // Insert user row into MySQL users table
     const [result] = await db.query(`
       INSERT INTO users (name, email, password, role, kyc_status, share_id, shares_owned, created_at)
       VALUES (?, ?, ?, ?, 'VERIFIED', NULL, 0, NOW())
@@ -53,12 +56,12 @@ router.post('/signup', async (req, res) => {
     };
 
     res.status(201).json({
-      message: 'Registration successful',
+      message: 'Account successfully registered and stored in database.',
       user: newUser
     });
   } catch (err) {
     console.error('Error during signup:', err);
-    res.status(500).json({ error: 'Registration failed due to server error' });
+    res.status(500).json({ error: 'Registration failed due to server error: ' + err.message });
   }
 });
 
@@ -68,11 +71,12 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({ error: 'Email and password are required.' });
     }
 
     const trimmedEmail = email.trim().toLowerCase();
 
+    // Query MySQL users table
     const [rows] = await db.query(`
       SELECT 
         u.user_id,
@@ -93,32 +97,37 @@ router.post('/login', async (req, res) => {
       WHERE u.email = ?
     `, [trimmedEmail]);
 
+    // 1. If email is NOT found in the database
     if (rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(404).json({ 
+        error: `No account found with email "${trimmedEmail}". Please check your email or click Sign Up to create an account.` 
+      });
     }
 
     const userRecord = rows[0];
 
-    // Verify bcrypt password
+    // 2. Verify password with bcryptjs
     const passwordMatch = await bcrypt.compare(password, userRecord.password);
     if (!passwordMatch) {
       // Fallback check for unhashed legacy demo passwords
       if (userRecord.password !== password) {
-        return res.status(401).json({ error: 'Invalid email or password' });
+        return res.status(401).json({ 
+          error: 'Incorrect password. Please verify your password and try again.' 
+        });
       }
     }
 
-    // Clean user object (do not expose password hash)
+    // Clean user object (do not expose password hash in response)
     const user = { ...userRecord };
     delete user.password;
 
     res.status(200).json({
-      message: 'Authentication successful',
+      message: 'Authentication successful. Session established.',
       user
     });
   } catch (err) {
     console.error('Error during login:', err);
-    res.status(500).json({ error: 'Authentication failed due to server error' });
+    res.status(500).json({ error: 'Authentication failed due to server error: ' + err.message });
   }
 });
 
