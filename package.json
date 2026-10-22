@@ -1,0 +1,25 @@
+{
+  "name": "valence-x-unlisted-securities-exchange",
+  "version": "2.0.0",
+  "description": "VALENCE-X — Private Securities Terminal. Academic DBMS Mini-Project.",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --prefix-colors \"cyan,green\" --names \"BACKEND,FRONTEND\" \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "start": "concurrently --kill-others-on-fail --prefix-colors \"cyan,green\" --names \"BACKEND,FRONTEND\" \"npm start --prefix backend\" \"npm run dev --prefix frontend\"",
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "reset:demo": "node database/reset_demo.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kapiljoshi9833/Unlisted-Share-Market"
+  },
+  "author": "Kapil Joshi, Dhruvan Joshi, Krishna Kela",
+  "license": "MIT"
+}
