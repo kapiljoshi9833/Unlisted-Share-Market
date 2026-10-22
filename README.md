@@ -181,21 +181,67 @@ DB_PASSWORD=your_mysql_password
 DB_NAME=unlisted_securities_exchange
 ```
 
-### 3. Start the Backend API
+### 3. One-Command Unified Startup (Runs Both Frontend & Backend)
+From the project root:
 ```bash
-cd backend
+# Install root orchestration & concurrently
 npm install
-npm start
-```
-*Backend runs on `http://localhost:5000`.*
 
-### 4. Start the React Frontend
-```bash
-cd frontend
-npm install
+# Start BOTH Backend (port 5000) and Frontend (port 5173) simultaneously:
 npm run dev
 ```
-*Open `http://localhost:5173` in your browser.*
+
+*Open `http://localhost:5173` in your browser. Both servers run with synchronized color-coded terminal logs.*
+
+> **Alternative: Running In Separate Terminals**
+> - **Backend:** `cd backend && npm install && npm run dev` (runs on `http://localhost:5000`)
+> - **Frontend:** `cd frontend && npm install && npm run dev` (runs on `http://localhost:5173`)
+
+### 4. 1-Click Database Reset for Viva / Demonstrations
+Before presenting your project or viva, reset the database to a clean, canonical demonstration state:
+```bash
+npm run reset:demo
+```
+*This truncates and re-seeds all 8 relational tables with correct constraints, test users, and open order books.*
+
+---
+
+## 🎯 Step-by-Step Order Matching Viva Demonstration
+
+Follow these steps to demonstrate the full end-to-end DBMS transaction lifecycle:
+
+1. **Start the Application:**
+   ```bash
+   npm run dev
+   ```
+   Open `http://localhost:5173` in your browser.
+
+2. **Step 1: Sign in as Seller (Arjun Verma)**
+   - Click **Enter Terminal** -> Click **Sign In** (or click *Demo as Arjun*).
+   - Email: `arjun@valence.local` | Password: `Password@123`
+   - Navigate to **Sell Security** tab.
+   - Select **NovaTech Systems - Equity**, enter Quantity: `10`, Target Ask Price: `500`.
+   - Click **PLACE SELL ORDER**.
+   - *Result: Inserted into the MySQL `sell` weak entity table with status `PENDING`.*
+
+3. **Step 2: Sign in as Buyer (Kapil Sharma / Friend's Account)**
+   - Click **EXIT TERMINAL** at bottom-left.
+   - Click **Sign In** -> Sign in as `kapil@valence.local` (or click *Demo as Kapil*).
+   - Navigate to **Buy Security** tab.
+   - Select **NovaTech Systems - Equity**, enter Quantity: `10`, Limit Bid Price: `500`.
+   - Click **PLACE BUY ORDER**.
+   - *Result: Inserted into the MySQL `buy` weak entity table with status `PENDING`.*
+
+4. **Step 3: Trigger the ACID Order Matching Engine**
+   - Click **Order Matching** in the sidebar.
+   - Notice both orders present in the **BUY ORDER QUEUE** and **SELL ORDER QUEUE**.
+   - Click **EXECUTE MATCH ENGINE**.
+   - *Result: Backend opens an ACID transaction (`BEGIN TRANSACTION ... FOR UPDATE`), matches the crossing bid/ask, deducts quantities, updates user portfolio custody balances, and inserts an audited record into `transactions`.*
+
+5. **Step 4: Verify the Settled Transaction**
+   - Go to the **Transactions** tab.
+   - A new immutable transaction `TXN-X` is displayed showing Kapil bought from Arjun at ₹500.00!
+   - Check the **Holdings** tab to see updated custody unit counts.
 
 ---
 
