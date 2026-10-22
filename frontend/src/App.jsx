@@ -508,28 +508,36 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border font-mono">
-                    {transactions.slice(0, 4).map((t) => {
-                      const comp = getCompany(getShare(t.share_id).company_id);
-                      return (
-                        <tr key={t.transaction_id} className="hover:bg-surfaceHover transition">
-                          <td className="p-4 text-accentBright">TXN-{t.transaction_id}</td>
-                          <td className="p-4 font-sans text-textMain">{t.company_name || comp.company_name}</td>
-                          <td className="p-4 text-textMuted text-xs font-sans">
-                            {t.buyer_name || `Buyer #${t.buyer_id}`} ⇄ {t.seller_name || `Seller #${t.seller_id}`}
-                          </td>
-                          <td className="p-4 text-right text-textMain">{t.quantity}</td>
-                          <td className="p-4 text-right text-textMain">₹{Number(t.price).toFixed(2)}</td>
-                          <td className="p-4 text-right text-accentBright font-semibold">
-                            ₹{(Number(t.quantity) * Number(t.price)).toLocaleString()}
-                          </td>
-                          <td className="p-4 text-center">
-                            <span className="inline-flex px-2 py-0.5 rounded text-[10px] border border-accentDark text-accentBright bg-accentDark/20 font-sans">
-                              COMPLETED
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {transactions.length > 0 ? (
+                      transactions.slice(0, 4).map((t) => {
+                        const comp = getCompany(getShare(t.share_id).company_id);
+                        return (
+                          <tr key={t.transaction_id} className="hover:bg-surfaceHover transition">
+                            <td className="p-4 text-accentBright">TXN-{t.transaction_id}</td>
+                            <td className="p-4 font-sans text-textMain">{t.company_name || comp.company_name}</td>
+                            <td className="p-4 text-textMuted text-xs font-sans">
+                              {t.buyer_name || `Buyer #${t.buyer_id}`} ⇄ {t.seller_name || `Seller #${t.seller_id}`}
+                            </td>
+                            <td className="p-4 text-right text-textMain">{t.quantity}</td>
+                            <td className="p-4 text-right text-textMain">₹{Number(t.price).toFixed(2)}</td>
+                            <td className="p-4 text-right text-accentBright font-semibold">
+                              ₹{(Number(t.quantity) * Number(t.price)).toLocaleString()}
+                            </td>
+                            <td className="p-4 text-center">
+                              <span className="inline-flex px-2 py-0.5 rounded text-[10px] border border-accentDark text-accentBright bg-accentDark/20 font-sans">
+                                COMPLETED
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="p-6 text-center text-textMuted font-sans text-xs">
+                          No transactions recorded yet. Match buy & sell orders to execute real trades on the ledger.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -953,20 +961,28 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {buyOrders.map(b => (
-                        <tr key={`${b.user_id}-${b.buy_id}`}>
-                          <td className="p-3 text-textMuted">#{b.buy_id}</td>
-                          <td className="p-3 text-textMain font-sans">{b.buyer_name || `User #${b.user_id}`}</td>
-                          <td className="p-3 text-textMain font-sans">{b.company_name || getCompany(getShare(b.share_id).company_id).company_name}</td>
-                          <td className="p-3 text-right text-accentBright">₹{Number(b.price).toFixed(2)}</td>
-                          <td className="p-3 text-right text-textMain">{b.remaining_quantity}</td>
-                          <td className="p-3 text-center">
-                            <span className={`px-2 py-0.5 rounded text-[10px] ${b.buy_status === 'COMPLETED' ? 'text-accentBright border border-accentDark' : b.buy_status === 'PARTIAL' ? 'text-amber-400 border border-amber-600' : 'text-textMuted border border-border'}`}>
-                              {b.buy_status}
-                            </span>
+                      {buyOrders.length > 0 ? (
+                        buyOrders.map(b => (
+                          <tr key={`${b.user_id}-${b.buy_id}`}>
+                            <td className="p-3 text-textMuted">#{b.buy_id}</td>
+                            <td className="p-3 text-textMain font-sans">{b.buyer_name || `User #${b.user_id}`}</td>
+                            <td className="p-3 text-textMain font-sans">{b.company_name || getCompany(getShare(b.share_id).company_id).company_name}</td>
+                            <td className="p-3 text-right text-accentBright">₹{Number(b.price).toFixed(2)}</td>
+                            <td className="p-3 text-right text-textMain">{b.remaining_quantity}</td>
+                            <td className="p-3 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] ${b.buy_status === 'COMPLETED' ? 'text-accentBright border border-accentDark' : b.buy_status === 'PARTIAL' ? 'text-amber-400 border border-amber-600' : 'text-textMuted border border-border'}`}>
+                                {b.buy_status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="p-4 text-center text-textMuted font-sans text-xs">
+                            No open bids in the buy queue. Submit a Buy order to populate this queue.
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -988,20 +1004,28 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {sellOrders.map(s => (
-                        <tr key={`${s.user_id}-${s.sell_id}`}>
-                          <td className="p-3 text-textMuted">#{s.sell_id}</td>
-                          <td className="p-3 text-textMain font-sans">{s.seller_name || `User #${s.user_id}`}</td>
-                          <td className="p-3 text-textMain font-sans">{s.company_name || getCompany(getShare(s.share_id).company_id).company_name}</td>
-                          <td className="p-3 text-right text-sellRed">₹{Number(s.price).toFixed(2)}</td>
-                          <td className="p-3 text-right text-textMain">{s.remaining_quantity}</td>
-                          <td className="p-3 text-center">
-                            <span className={`px-2 py-0.5 rounded text-[10px] ${s.sell_status === 'COMPLETED' ? 'text-accentBright border border-accentDark' : s.sell_status === 'PARTIAL' ? 'text-amber-400 border border-amber-600' : 'text-textMuted border border-border'}`}>
-                              {s.sell_status}
-                            </span>
+                      {sellOrders.length > 0 ? (
+                        sellOrders.map(s => (
+                          <tr key={`${s.user_id}-${s.sell_id}`}>
+                            <td className="p-3 text-textMuted">#{s.sell_id}</td>
+                            <td className="p-3 text-textMain font-sans">{s.seller_name || `User #${s.user_id}`}</td>
+                            <td className="p-3 text-textMain font-sans">{s.company_name || getCompany(getShare(s.share_id).company_id).company_name}</td>
+                            <td className="p-3 text-right text-sellRed">₹{Number(s.price).toFixed(2)}</td>
+                            <td className="p-3 text-right text-textMain">{s.remaining_quantity}</td>
+                            <td className="p-3 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] ${s.sell_status === 'COMPLETED' ? 'text-accentBright border border-accentDark' : s.sell_status === 'PARTIAL' ? 'text-amber-400 border border-amber-600' : 'text-textMuted border border-border'}`}>
+                                {s.sell_status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="p-4 text-center text-textMuted font-sans text-xs">
+                            No open asks in the sell queue. Submit a Sell order to populate this queue.
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1076,32 +1100,40 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border text-xs">
-                    {transactions.map(t => {
-                      const comp = getCompany(getShare(t.share_id).company_id);
-                      return (
-                        <tr key={t.transaction_id} className="hover:bg-surfaceHover">
-                          <td className="p-4 text-accentBright font-semibold">TXN-{t.transaction_id}</td>
-                          <td className="p-4 font-sans text-sm text-textMain">{t.company_name || comp.company_name}</td>
-                          <td className="p-4 text-textMuted font-sans">
-                            {t.buyer_name || `User #${t.buyer_id}`} (#{t.buy_id})
-                          </td>
-                          <td className="p-4 text-textMuted font-sans">
-                            {t.seller_name || `User #${t.seller_id}`} (#{t.sell_id})
-                          </td>
-                          <td className="p-4 text-right text-textMain font-medium">{t.quantity}</td>
-                          <td className="p-4 text-right text-textMain">₹{Number(t.price).toFixed(2)}</td>
-                          <td className="p-4 text-right text-accentBright font-semibold">
-                            ₹{(Number(t.quantity) * Number(t.price)).toLocaleString()}
-                          </td>
-                          <td className="p-4 text-textMuted">{t.transaction_time}</td>
-                          <td className="p-4 text-center">
-                            <span className="px-2 py-0.5 rounded text-[10px] border border-accentDark text-accentBright bg-accentDark/20">
-                              COMPLETED
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {transactions.length > 0 ? (
+                      transactions.map(t => {
+                        const comp = getCompany(getShare(t.share_id).company_id);
+                        return (
+                          <tr key={t.transaction_id} className="hover:bg-surfaceHover">
+                            <td className="p-4 text-accentBright font-semibold">TXN-{t.transaction_id}</td>
+                            <td className="p-4 font-sans text-sm text-textMain">{t.company_name || comp.company_name}</td>
+                            <td className="p-4 text-textMuted font-sans">
+                              {t.buyer_name || `User #${t.buyer_id}`} (#{t.buy_id})
+                            </td>
+                            <td className="p-4 text-textMuted font-sans">
+                              {t.seller_name || `User #${t.seller_id}`} (#{t.sell_id})
+                            </td>
+                            <td className="p-4 text-right text-textMain font-medium">{t.quantity}</td>
+                            <td className="p-4 text-right text-textMain">₹{Number(t.price).toFixed(2)}</td>
+                            <td className="p-4 text-right text-accentBright font-semibold">
+                              ₹{(Number(t.quantity) * Number(t.price)).toLocaleString()}
+                            </td>
+                            <td className="p-4 text-textMuted">{t.transaction_time}</td>
+                            <td className="p-4 text-center">
+                              <span className="px-2 py-0.5 rounded text-[10px] border border-accentDark text-accentBright bg-accentDark/20">
+                                COMPLETED
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={9} className="p-6 text-center text-textMuted font-sans text-xs">
+                          No settled trades yet. Once an order match occurs, an immutable transaction record will appear here.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

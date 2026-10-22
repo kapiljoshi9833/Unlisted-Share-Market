@@ -55,23 +55,35 @@ export default function AuthModal({ initialMode = 'signin', onClose, onAuthSucce
     }
   };
 
-  const handleDemoLogin = async (demoRole = 'Investor') => {
+  const handleDemoLogin = async (demoKey = 'kapil') => {
     setErrorMsg(null);
     setSuccessMsg(null);
     setLoading(true);
     try {
-      const demoEmail = demoRole === 'Investor' ? 'kapil@valence.local' : 'admin@valence.local';
-      const demoPass = demoRole === 'Investor' ? 'Password@123' : 'admin123';
+      let demoEmail = 'kapil@valence.local';
+      let demoPass = 'Password@123';
+
+      if (demoKey === 'arjun') {
+        demoEmail = 'arjun@valence.local';
+        demoPass = 'Password@123';
+      } else if (demoKey === 'admin') {
+        demoEmail = 'admin@valence.local';
+        demoPass = 'admin123';
+      }
+
       const response = await api.login(demoEmail, demoPass);
-      setSuccessMsg(`Demo profile verified from database. Welcome, ${response.user.name}!`);
+      setSuccessMsg(`Profile verified from database. Welcome, ${response.user.name}!`);
       setTimeout(() => {
         onAuthSuccess(response.user);
       }, 500);
     } catch (err) {
       console.warn("Backend login failed, using fallback:", err.message);
-      const fallbackUser = demoRole === 'Investor'
-        ? { user_id: 1, name: "Kapil Sharma", email: "kapil@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 1, shares_owned: 450 }
-        : { user_id: 6, name: "Market Admin", email: "admin@valence.local", role: "Admin", kyc_status: "VERIFIED", share_id: null, shares_owned: 0 };
+      let fallbackUser = { user_id: 1, name: "Kapil Joshi", email: "kapil@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: null, shares_owned: 0 };
+      if (demoKey === 'arjun') {
+        fallbackUser = { user_id: 2, name: "Arjun Verma", email: "arjun@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 1, shares_owned: 300 };
+      } else if (demoKey === 'admin') {
+        fallbackUser = { user_id: 3, name: "Market Admin", email: "admin@valence.local", role: "Admin", kyc_status: "VERIFIED", share_id: null, shares_owned: 0 };
+      }
       onAuthSuccess(fallbackUser);
     } finally {
       setLoading(false);
@@ -236,20 +248,27 @@ export default function AuthModal({ initialMode = 'signin', onClose, onAuthSucce
             <div className="text-[10px] font-mono text-textMuted uppercase tracking-wider text-center mb-2">
               ⚡ 1-Click Evaluation Access (Stored in MySQL)
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button 
                 type="button"
                 disabled={loading}
-                onClick={() => handleDemoLogin('Investor')}
-                className="py-2 px-3 text-xs font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
-                Demo as Kapil
+                onClick={() => handleDemoLogin('kapil')}
+                className="py-2 px-1 text-[11px] font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
+                Kapil (Buyer)
               </button>
               <button 
                 type="button"
                 disabled={loading}
-                onClick={() => handleDemoLogin('Admin')}
-                className="py-2 px-3 text-xs font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
-                Demo as Admin
+                onClick={() => handleDemoLogin('arjun')}
+                className="py-2 px-1 text-[11px] font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
+                Arjun (Seller)
+              </button>
+              <button 
+                type="button"
+                disabled={loading}
+                onClick={() => handleDemoLogin('admin')}
+                className="py-2 px-1 text-[11px] font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
+                Admin
               </button>
             </div>
           </div>
