@@ -70,10 +70,59 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.status(200).json(rows[0]);
+    // Attach structured holdings array for portfolio views
+    const [holdings] = await db.query(`
+      SELECT 
+        s.share_id,
+        s.share_type,
+        s.current_price,
+        c.company_id,
+        c.company_name,
+        c.sector,
+        u.shares_owned,
+        ROUND(u.shares_owned * s.current_price, 2) AS total_value
+      FROM users u
+      JOIN shares s ON u.share_id = s.share_id
+      JOIN companies c ON s.company_id = c.company_id
+      WHERE u.user_id = ? AND u.shares_owned > 0
+    `, [id]);
+
+    const userProfile = {
+      ...rows[0],
+      holdings: holdings
+    };
+
+    res.status(200).json(userProfile);
   } catch (err) {
     console.error('Error fetching user profile:', err);
     res.status(500).json({ error: 'Failed to fetch user profile' });
+  }
+});
+
+// GET /api/users/portfolio/:id - Detailed custody portfolio
+router.get('/portfolio/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [holdings] = await db.query(`
+      SELECT 
+        s.share_id,
+        s.share_type,
+        s.current_price,
+        c.company_id,
+        c.company_name,
+        c.sector,
+        u.shares_owned,
+        ROUND(u.shares_owned * s.current_price, 2) AS total_value
+      FROM users u
+      JOIN shares s ON u.share_id = s.share_id
+      JOIN companies c ON s.company_id = c.company_id
+      WHERE u.user_id = ? AND u.shares_owned > 0
+    `, [id]);
+
+    res.status(200).json(holdings);
+  } catch (err) {
+    console.error('Error fetching user portfolio:', err);
+    res.status(500).json({ error: 'Failed to fetch portfolio' });
   }
 });
 

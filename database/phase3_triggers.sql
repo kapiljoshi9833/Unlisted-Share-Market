@@ -77,11 +77,12 @@ BEFORE INSERT ON sell
 FOR EACH ROW
 BEGIN
     DECLARE v_kyc VARCHAR(30);
-    DECLARE v_shares_owned INT;
+    DECLARE v_shares_owned INT DEFAULT 0;
     DECLARE v_held_share_id INT;
+    DECLARE v_pending_sells INT DEFAULT 0;
 
     -- Check Seller KYC and Holdings
-    SELECT kyc_status, shares_owned, share_id 
+    SELECT kyc_status, COALESCE(shares_owned, 0), share_id 
     INTO v_kyc, v_shares_owned, v_held_share_id
     FROM users 
     WHERE user_id = NEW.user_id;
@@ -91,10 +92,22 @@ BEGIN
             SET MESSAGE_TEXT = 'Order Rejected: Seller KYC status must be VERIFIED to submit sell orders.';
     END IF;
 
-    -- Validate share balance if user holds this specific security
-    IF v_held_share_id = NEW.share_id AND v_shares_owned < NEW.quantity THEN
+    -- Strict shareholding check: Seller MUST hold this specific security in portfolio
+    IF v_held_share_id IS NULL OR v_held_share_id <> NEW.share_id OR v_shares_owned <= 0 THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Order Rejected: Insufficient share holdings to cover this sell order quantity.';
+            SET MESSAGE_TEXT = 'Order Rejected: You do not own any shares of this security in your custody portfolio.';
+    END IF;
+
+    -- Check if active pending sell orders already commit these shares
+    SELECT COALESCE(SUM(remaining_quantity), 0) INTO v_pending_sells
+    FROM sell
+    WHERE user_id = NEW.user_id 
+      AND share_id = NEW.share_id 
+      AND sell_status IN ('PENDING', 'PARTIAL');
+
+    IF (v_shares_owned - v_pending_sells) < NEW.quantity THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Order Rejected: Insufficient available shares to cover this sell order.';
     END IF;
 
     -- Default remaining_quantity if null

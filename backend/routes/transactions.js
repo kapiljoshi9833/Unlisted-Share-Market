@@ -180,19 +180,20 @@ router.post('/match', async (req, res) => {
             WHERE user_id = ? AND sell_id = ?
           `, [sell.remaining_quantity, newSellStatus, sell.user_id, sell.sell_id]);
 
-          // D. Update Buyer portfolio holdings
+          // D. Update Buyer portfolio holdings in users table
           await connection.query(`
             UPDATE users 
-            SET share_id = ?, shares_owned = shares_owned + ? 
+            SET share_id = ?, shares_owned = COALESCE(shares_owned, 0) + ? 
             WHERE user_id = ?
           `, [buy.share_id, matchQuantity, buy.user_id]);
 
-          // E. Update Seller portfolio holdings (safely floor at zero)
+          // E. Update Seller portfolio holdings (safely floor at zero, reset share_id if 0)
           await connection.query(`
             UPDATE users 
-            SET shares_owned = GREATEST(0, shares_owned - ?) 
+            SET shares_owned = GREATEST(0, COALESCE(shares_owned, 0) - ?),
+                share_id = CASE WHEN GREATEST(0, COALESCE(shares_owned, 0) - ?) = 0 THEN NULL ELSE share_id END
             WHERE user_id = ?
-          `, [matchQuantity, sell.user_id]);
+          `, [matchQuantity, matchQuantity, sell.user_id]);
 
           createdTransactions.push({
             transaction_id: txnResult.insertId,

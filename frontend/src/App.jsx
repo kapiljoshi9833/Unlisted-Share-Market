@@ -39,7 +39,14 @@ export default function App() {
   const [activeView, setActiveView] = useState('landing'); // 'landing' | 'terminal'
   const [authModal, setAuthModal] = useState(null); // null | 'signin' | 'signup'
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [currentUser, setCurrentUser] = useState(initialUsers[0]);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('valence_user');
+      return saved ? JSON.parse(saved) : initialUsers[0];
+    } catch {
+      return initialUsers[0];
+    }
+  });
 
   // State mapped strictly to the 8 MySQL Tables
   const [companies, setCompanies] = useState(initialCompanies);
@@ -109,8 +116,11 @@ export default function App() {
       // Refresh current user holdings if logged in
       if (currentUser?.user_id) {
         const userRes = await api.getUserProfile(currentUser.user_id).catch(() => null);
-        if (userRes) {
-          setCurrentUser(prev => ({ ...prev, ...userRes }));
+        if (userRes && userRes.user_id) {
+          setCurrentUser(userRes);
+          try {
+            localStorage.setItem('valence_user', JSON.stringify(userRes));
+          } catch {}
         }
       }
     } catch (err) {
@@ -131,6 +141,13 @@ export default function App() {
       setLoading(true);
       const result = await api.matchOrders();
       await loadAllData();
+      if (currentUser?.user_id) {
+        const freshUser = await api.getUserProfile(currentUser.user_id).catch(() => null);
+        if (freshUser && freshUser.user_id) {
+          setCurrentUser(freshUser);
+          try { localStorage.setItem('valence_user', JSON.stringify(freshUser)); } catch {}
+        }
+      }
       alert(`MATCH SUCCESS: ${result.message}`);
     } catch (err) {
       console.error("Match error:", err);
@@ -163,6 +180,13 @@ export default function App() {
       setOrderSuccessMsg(res.message || `Buy order placed successfully (Order #${res.buy_id})`);
       setOrderQty('');
       await loadAllData();
+      if (currentUser?.user_id) {
+        const freshUser = await api.getUserProfile(currentUser.user_id).catch(() => null);
+        if (freshUser && freshUser.user_id) {
+          setCurrentUser(freshUser);
+          try { localStorage.setItem('valence_user', JSON.stringify(freshUser)); } catch {}
+        }
+      }
     } catch (err) {
       setOrderErrorMsg(err.message || "Failed to place buy order");
     } finally {
@@ -193,6 +217,13 @@ export default function App() {
       setOrderSuccessMsg(res.message || `Sell order placed successfully (Order #${res.sell_id})`);
       setOrderQty('');
       await loadAllData();
+      if (currentUser?.user_id) {
+        const freshUser = await api.getUserProfile(currentUser.user_id).catch(() => null);
+        if (freshUser && freshUser.user_id) {
+          setCurrentUser(freshUser);
+          try { localStorage.setItem('valence_user', JSON.stringify(freshUser)); } catch {}
+        }
+      }
     } catch (err) {
       setOrderErrorMsg(err.message || "Failed to place sell order");
     } finally {
@@ -240,6 +271,9 @@ export default function App() {
             onClose={() => setAuthModal(null)}
             onAuthSuccess={(user) => {
               setCurrentUser(user);
+              try {
+                localStorage.setItem('valence_user', JSON.stringify(user));
+              } catch {}
               setAuthModal(null);
               setActiveView('terminal');
               loadAllData();
@@ -250,9 +284,17 @@ export default function App() {
     );
   }
 
-  // Calculate user total portfolio value
+  // Calculate user total portfolio value across all holdings
   const userShare = shares.find(s => Number(s.share_id) === Number(currentUser?.share_id));
-  const userHoldingValue = (currentUser?.shares_owned || 0) * (userShare ? Number(userShare.current_price) : 250);
+  const userHoldingValue = (currentUser?.holdings && currentUser.holdings.length > 0)
+    ? currentUser.holdings.reduce((sum, h) => sum + Number(h.total_value || (Number(h.shares_owned) * Number(h.current_price))), 0)
+    : ((currentUser?.shares_owned || 0) * (userShare ? Number(userShare.current_price) : 250));
+
+  // Determine how many units of the selected security in buy/sell tickets the user actually owns
+  const ownedUnitsOfSelected = (
+    currentUser?.holdings?.find(h => Number(h.share_id) === Number(selectedShareId))?.shares_owned ??
+    (Number(currentUser?.share_id) === Number(selectedShareId) ? Number(currentUser?.shares_owned || 0) : 0)
+  );
 
   // IF INSIDE TRADING TERMINAL VIEW
   return (
@@ -362,7 +404,13 @@ export default function App() {
           </div>
 
           <button 
-            onClick={() => setActiveView('landing')}
+            onClick={() => {
+              try {
+                localStorage.removeItem('valence_user');
+              } catch {}
+              setCurrentUser(initialUsers[0]);
+              setActiveView('landing');
+            }}
             className="w-full py-1.5 px-3 rounded border border-border hover:border-sellRed hover:text-sellRed text-xs font-mono text-textMuted flex items-center justify-center space-x-2 transition bg-bg">
             <LogOut size={12} />
             <span>EXIT TERMINAL</span>
@@ -847,9 +895,28 @@ export default function App() {
                 </div>
 
                 <div className="p-3 border border-border rounded bg-bg flex justify-between items-center">
-                  <div className="text-xs font-mono text-textMuted uppercase">YOUR CUSTODY HOLDING</div>
-                  <div className="text-sm font-mono font-semibold text-textMain">{currentUser?.shares_owned || 0} Units</div>
+                  <div>
+                    <div className="text-[10px] font-mono text-textMuted uppercase">YOUR CUSTODY IN {activeSelectedShare?.share_type || 'SECURITY'}</div>
+                    <div className="text-sm font-mono font-semibold text-textMain">{ownedUnitsOfSelected} Units Available to Sell</div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${ownedUnitsOfSelected > 0 ? 'border-accentDark text-accentBright bg-accentDark/20' : 'border-sellDark text-sellRed bg-sellDark/20'}`}>
+                    {ownedUnitsOfSelected > 0 ? 'ELIGIBLE TO SELL' : 'NO HOLDINGS'}
+                  </span>
                 </div>
+
+                {ownedUnitsOfSelected <= 0 && (
+                  <div className="p-3 rounded border border-sellRed/50 bg-sellDark/20 text-sellRed text-xs font-mono flex items-center space-x-2">
+                    <AlertCircle size={16} className="shrink-0" />
+                    <span>Order Blocked: You do not hold any shares of this security. You must acquire shares via a Buy order before you can sell.</span>
+                  </div>
+                )}
+
+                {ownedUnitsOfSelected > 0 && orderQty && Number(orderQty) > ownedUnitsOfSelected && (
+                  <div className="p-3 rounded border border-amber-600/50 bg-amber-950/20 text-amber-400 text-xs font-mono flex items-center space-x-2">
+                    <AlertCircle size={16} className="shrink-0" />
+                    <span>Insufficient balance: You only hold {ownedUnitsOfSelected} units of this security.</span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -858,10 +925,12 @@ export default function App() {
                       type="number"
                       required
                       min="1"
+                      max={ownedUnitsOfSelected > 0 ? ownedUnitsOfSelected : undefined}
                       value={orderQty}
                       onChange={(e) => setOrderQty(e.target.value)}
-                      placeholder="e.g. 50"
-                      className="w-full bg-bg border border-border rounded px-4 py-2 text-sm font-mono text-textMain focus:outline-none focus:border-sellRed"
+                      placeholder={ownedUnitsOfSelected > 0 ? `Max ${ownedUnitsOfSelected}` : "0"}
+                      disabled={ownedUnitsOfSelected <= 0}
+                      className="w-full bg-bg border border-border rounded px-4 py-2 text-sm font-mono text-textMain focus:outline-none focus:border-sellRed disabled:opacity-40"
                     />
                   </div>
                   <div>
@@ -874,7 +943,8 @@ export default function App() {
                       value={orderPrice}
                       onChange={(e) => setOrderPrice(e.target.value)}
                       placeholder="e.g. 250"
-                      className="w-full bg-bg border border-border rounded px-4 py-2 text-sm font-mono text-textMain focus:outline-none focus:border-sellRed"
+                      disabled={ownedUnitsOfSelected <= 0}
+                      className="w-full bg-bg border border-border rounded px-4 py-2 text-sm font-mono text-textMain focus:outline-none focus:border-sellRed disabled:opacity-40"
                     />
                   </div>
                 </div>
@@ -888,9 +958,15 @@ export default function App() {
 
                 <button 
                   type="submit"
-                  disabled={submittingOrder}
-                  className="w-full py-3 rounded text-sm font-semibold border border-sellRed text-sellRed bg-sellDark/30 hover:bg-sellDark/60 transition disabled:opacity-50 font-mono">
-                  {submittingOrder ? "SUBMITTING TO MYSQL..." : "PLACE SELL ORDER"}
+                  disabled={submittingOrder || ownedUnitsOfSelected <= 0 || (Number(orderQty) > ownedUnitsOfSelected)}
+                  className="w-full py-3 rounded text-sm font-semibold border border-sellRed text-sellRed bg-sellDark/30 hover:bg-sellDark/60 transition disabled:opacity-40 disabled:cursor-not-allowed font-mono">
+                  {submittingOrder 
+                    ? "SUBMITTING TO MYSQL..." 
+                    : ownedUnitsOfSelected <= 0 
+                      ? "CANNOT SELL — 0 UNITS IN CUSTODY" 
+                      : (Number(orderQty) > ownedUnitsOfSelected)
+                        ? `INSUFFICIENT BALANCE (HOLDING ${ownedUnitsOfSelected})`
+                        : "PLACE SELL ORDER"}
                 </button>
               </form>
             </div>
@@ -1053,11 +1129,23 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border font-mono">
-                    {currentUser?.shares_owned > 0 ? (
+                    {(currentUser?.holdings && currentUser.holdings.length > 0) ? (
+                      currentUser.holdings.map((h) => (
+                        <tr key={h.share_id} className="hover:bg-surfaceHover">
+                          <td className="p-4 font-sans font-medium text-textMain">{h.company_name}</td>
+                          <td className="p-4 text-textMuted text-xs">{h.share_type} • {h.sector}</td>
+                          <td className="p-4 text-right text-textMain font-semibold">{h.shares_owned} Units</td>
+                          <td className="p-4 text-right text-textMain">₹{Number(h.current_price).toFixed(2)}</td>
+                          <td className="p-4 text-right font-semibold text-accentBright">
+                            ₹{Number(h.total_value || (Number(h.shares_owned) * Number(h.current_price))).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))
+                    ) : currentUser?.shares_owned > 0 ? (
                       <tr className="hover:bg-surfaceHover">
                         <td className="p-4 font-sans font-medium text-textMain">{userShare?.company_name || getCompany(userShare?.company_id).company_name || 'NovaTech Innovations'}</td>
-                        <td className="p-4 text-textMuted">{userShare?.share_type || 'Equity'}</td>
-                        <td className="p-4 text-right text-textMain font-semibold">{currentUser.shares_owned}</td>
+                        <td className="p-4 text-textMuted text-xs">{userShare?.share_type || 'Equity'}</td>
+                        <td className="p-4 text-right text-textMain font-semibold">{currentUser.shares_owned} Units</td>
                         <td className="p-4 text-right text-textMain">₹{Number(userShare?.current_price || 250).toFixed(2)}</td>
                         <td className="p-4 text-right font-semibold text-accentBright">
                           ₹{userHoldingValue.toLocaleString()}

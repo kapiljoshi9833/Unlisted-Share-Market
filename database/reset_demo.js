@@ -70,7 +70,7 @@ async function reset() {
     `);
     console.log('[SEED]   shares: 4 rows');
 
-    // ── 3. USERS: Only 2 Real Participants (You + Friend) + 1 Admin ───────────
+    // ── 3. USERS: Participants (Kapil & Arjun + Personal Accounts) + 1 Admin ─
     // Hashes for 'Password@123' and 'admin123'
     const investorHash = '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
     const adminHash    = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p362kim6oh55u.7M5aCCMK';
@@ -78,11 +78,13 @@ async function reset() {
     await conn.query(`
       INSERT INTO users (user_id, name, email, password, role, kyc_status, share_id, shares_owned, created_at)
       VALUES
-        (1, 'Kapil Joshi', 'kapil@valence.local', ?, 'Investor', 'VERIFIED', NULL,   0, '2026-01-10 09:00:00'),
-        (2, 'Arjun Verma', 'arjun@valence.local', ?, 'Investor', 'VERIFIED',    1, 300, '2026-01-11 11:30:00'),
-        (3, 'Market Admin','admin@valence.local', ?, 'Admin',    'VERIFIED', NULL,   0, '2026-01-01 08:00:00')
-    `, [investorHash, investorHash, adminHash]);
-    console.log('[SEED]   users: 3 rows (Kapil Joshi [Buyer], Arjun Verma [Seller, 300 shares], Market Admin)');
+        (1, 'Kapil Joshi',   'kapil@valence.local',     ?, 'Investor', 'VERIFIED', NULL,   0, '2026-01-10 09:00:00'),
+        (2, 'Arjun Verma',   'arjun@valence.local',     ?, 'Investor', 'VERIFIED',    1, 300, '2026-01-11 11:30:00'),
+        (3, 'Market Admin',  'admin@valence.local',     ?, 'Admin',    'VERIFIED', NULL,   0, '2026-01-01 08:00:00'),
+        (4, 'Kapil Joshi',   'kapiljoshi9833@gmail.com',?, 'Investor', 'VERIFIED', NULL,   0, '2026-01-12 09:00:00'),
+        (5, 'Dhruvan Joshi', 'kapil05joshii@gmail.com', ?, 'Investor', 'VERIFIED',    1, 300, '2026-01-13 09:00:00')
+    `, [investorHash, investorHash, adminHash, investorHash, investorHash]);
+    console.log('[SEED]   users: 5 rows (Kapil [Buyer, 0 shs], Arjun/Dhruvan [Seller, 300 NovaTech shs], Admin)');
 
     // ── 4. ESOPS (Belonging to Kapil and Arjun) ────────────────────────────────
     await conn.query(`

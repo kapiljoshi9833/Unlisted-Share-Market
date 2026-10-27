@@ -47,6 +47,9 @@ export const api = {
   getUserProfile: (userId) => 
     request(`/users/${userId}`),
 
+  getUserPortfolio: (userId) => 
+    request(`/users/portfolio/${userId}`),
+
   // Market & Securities Data
   getCompanies: () => 
     request('/companies'),
