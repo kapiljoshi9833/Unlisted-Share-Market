@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import LandingPage from './components/LandingPage';
 import AuthModal from './components/AuthModal';
+import DbmsExplorer from './components/DbmsExplorer';
+import UserProfileModal from './components/UserProfileModal';
 import api from './services/api';
 import { 
   BRAND, 
@@ -31,7 +33,8 @@ import {
   Terminal,
   LogOut,
   RefreshCw,
-  Database
+  Database,
+  UserCheck
 } from 'lucide-react';
 
 export default function App() {
@@ -39,6 +42,7 @@ export default function App() {
   const [activeView, setActiveView] = useState('landing'); // 'landing' | 'terminal'
   const [authModal, setAuthModal] = useState(null); // null | 'signin' | 'signup'
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [profileModalUserId, setProfileModalUserId] = useState(null);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('valence_user');
@@ -375,16 +379,28 @@ export default function App() {
               <div className="px-3 mb-2 text-[10px] font-semibold text-textMuted uppercase tracking-wider">Securities</div>
               <div className="space-y-1">
                 <button 
-                  onClick={() => setActiveTab('esops')}
+                  onClick={() => { setActiveTab('esops'); setViewCompany(null); }}
                   className={`w-full flex items-center space-x-3 px-3 py-2 rounded text-sm font-medium transition ${activeTab === 'esops' ? 'bg-surfaceHover text-accentBright border border-border' : 'text-textMuted hover:text-textMain hover:bg-surfaceHover/50'}`}>
                   <Layers size={16} />
                   <span>ESOPs</span>
                 </button>
                 <button 
-                  onClick={() => setActiveTab('debentures')}
+                  onClick={() => { setActiveTab('debentures'); setViewCompany(null); }}
                   className={`w-full flex items-center space-x-3 px-3 py-2 rounded text-sm font-medium transition ${activeTab === 'debentures' ? 'bg-surfaceHover text-accentBright border border-border' : 'text-textMuted hover:text-textMain hover:bg-surfaceHover/50'}`}>
                   <ShieldCheck size={16} />
                   <span>Debentures</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div className="px-3 mb-2 text-[10px] font-semibold text-accentBright uppercase tracking-wider">Academic & DBMS</div>
+              <div className="space-y-1">
+                <button 
+                  onClick={() => { setActiveTab('dbms'); setViewCompany(null); }}
+                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded text-sm font-medium transition ${activeTab === 'dbms' ? 'bg-accentDark/40 text-accentBright border border-accentDark font-semibold shadow-sm' : 'text-accentBright/80 hover:text-accentBright hover:bg-surfaceHover/50 border border-transparent'}`}>
+                  <Database size={16} className="text-accentBright" />
+                  <span className="font-semibold tracking-wide">DBMS Explorer</span>
                 </button>
               </div>
             </div>
@@ -393,7 +409,9 @@ export default function App() {
 
         {/* User Profile & Exit Button */}
         <div className="p-4 border-t border-border bg-surface space-y-3">
-          <div className="flex items-center justify-between">
+          <div 
+            onClick={() => setProfileModalUserId(currentUser?.user_id)}
+            className="flex items-center justify-between cursor-pointer hover:bg-surfaceHover/60 p-1.5 -m-1.5 rounded transition">
             <div className="truncate pr-2">
               <div className="text-sm font-medium text-textMain truncate">{currentUser?.name || "Kapil Sharma"}</div>
               <div className="text-xs text-textMuted">{currentUser?.role || "Investor"} • User #{currentUser?.user_id}</div>
@@ -403,18 +421,26 @@ export default function App() {
             </span>
           </div>
 
-          <button 
-            onClick={() => {
-              try {
-                localStorage.removeItem('valence_user');
-              } catch {}
-              setCurrentUser(initialUsers[0]);
-              setActiveView('landing');
-            }}
-            className="w-full py-1.5 px-3 rounded border border-border hover:border-sellRed hover:text-sellRed text-xs font-mono text-textMuted flex items-center justify-center space-x-2 transition bg-bg">
-            <LogOut size={12} />
-            <span>EXIT TERMINAL</span>
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button 
+              onClick={() => setProfileModalUserId(currentUser?.user_id)}
+              className="py-1.5 px-2 rounded border border-accentDark text-accentBright hover:bg-accentDark/20 text-xs font-mono flex items-center justify-center space-x-1.5 transition bg-bg">
+              <UserCheck size={12} />
+              <span>PROFILE</span>
+            </button>
+            <button 
+              onClick={() => {
+                try {
+                  localStorage.removeItem('valence_user');
+                } catch {}
+                setCurrentUser(initialUsers[0]);
+                setActiveView('landing');
+              }}
+              className="py-1.5 px-2 rounded border border-border hover:border-sellRed hover:text-sellRed text-xs font-mono text-textMuted flex items-center justify-center space-x-1.5 transition bg-bg">
+              <LogOut size={12} />
+              <span>EXIT</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -1196,10 +1222,20 @@ export default function App() {
                             <td className="p-4 text-accentBright font-semibold">TXN-{t.transaction_id}</td>
                             <td className="p-4 font-sans text-sm text-textMain">{t.company_name || comp.company_name}</td>
                             <td className="p-4 text-textMuted font-sans">
-                              {t.buyer_name || `User #${t.buyer_id}`} (#{t.buy_id})
+                              <button 
+                                onClick={() => setProfileModalUserId(t.buyer_id)}
+                                className="text-left hover:text-accentBright hover:underline transition font-medium">
+                                {t.buyer_name || `User #${t.buyer_id}`}
+                              </button>
+                              <span className="text-textMuted text-[10px] ml-1 font-mono">(#B-{t.buy_id})</span>
                             </td>
                             <td className="p-4 text-textMuted font-sans">
-                              {t.seller_name || `User #${t.seller_id}`} (#{t.sell_id})
+                              <button 
+                                onClick={() => setProfileModalUserId(t.seller_id)}
+                                className="text-left hover:text-accentBright hover:underline transition font-medium">
+                                {t.seller_name || `User #${t.seller_id}`}
+                              </button>
+                              <span className="text-textMuted text-[10px] ml-1 font-mono">(#S-{t.sell_id})</span>
                             </td>
                             <td className="p-4 text-right text-textMain font-medium">{t.quantity}</td>
                             <td className="p-4 text-right text-textMain">₹{Number(t.price).toFixed(2)}</td>
@@ -1325,8 +1361,21 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* DBMS & ACADEMIC EXPLORER TAB */}
+          {activeTab === 'dbms' && (
+            <DbmsExplorer />
+          )}
         </div>
       </main>
+
+      {/* PARTICIPANT COMPLIANCE & PORTFOLIO DOSSIER MODAL */}
+      {profileModalUserId && (
+        <UserProfileModal 
+          userId={profileModalUserId} 
+          onClose={() => setProfileModalUserId(null)} 
+        />
+      )}
     </div>
   );
 }

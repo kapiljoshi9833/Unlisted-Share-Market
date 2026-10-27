@@ -31,7 +31,7 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
-  // Authentication
+  // Authentication & Users
   login: (email, password) => 
     request('/auth/login', {
       method: 'POST',
@@ -44,11 +44,17 @@ export const api = {
       body: JSON.stringify(userData)
     }),
 
+  getUsers: () =>
+    request('/users'),
+
   getUserProfile: (userId) => 
     request(`/users/${userId}`),
 
   getUserPortfolio: (userId) => 
     request(`/users/portfolio/${userId}`),
+
+  getUserProfileCard: (userId) =>
+    request(`/users/profile-card/${userId}`),
 
   // Market & Securities Data
   getCompanies: () => 
@@ -112,7 +118,34 @@ export const api = {
 
   // Exchange Stats
   getOverviewStats: () => 
-    request('/stats/overview')
+    request('/stats/overview'),
+
+  // Phase III Views
+  getViewsList: () =>
+    request('/stats/views'),
+
+  getViewData: (viewName) =>
+    request(`/stats/views/${viewName}`),
+
+  // Phase III Triggers
+  getTriggersList: () =>
+    request('/stats/triggers'),
+
+  // Phase II 16 Core Queries
+  getQueriesList: () =>
+    request('/stats/queries'),
+
+  runQuery: (queryId) =>
+    request('/stats/queries/run', {
+      method: 'POST',
+      body: JSON.stringify({ queryId })
+    }),
+
+  runCustomSql: (sql) =>
+    request('/stats/run-custom-sql', {
+      method: 'POST',
+      body: JSON.stringify({ sql })
+    })
 };
 
 export default api;
