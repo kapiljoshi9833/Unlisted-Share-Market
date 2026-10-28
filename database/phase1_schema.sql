@@ -83,6 +83,7 @@ CREATE TABLE users (
     kyc_status VARCHAR(30) NOT NULL DEFAULT 'VERIFIED',
     share_id INT NULL,
     shares_owned INT NOT NULL DEFAULT 0,
+    wallet_balance DECIMAL(15, 2) NOT NULL DEFAULT 100000.00,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT uq_user_email UNIQUE (email),
@@ -91,7 +92,8 @@ CREATE TABLE users (
         ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT chk_user_role CHECK (role IN ('Investor', 'Admin', 'Institutional', 'Broker')),
     CONSTRAINT chk_kyc_status CHECK (kyc_status IN ('VERIFIED', 'PENDING', 'REJECTED')),
-    CONSTRAINT chk_shares_owned CHECK (shares_owned >= 0)
+    CONSTRAINT chk_shares_owned CHECK (shares_owned >= 0),
+    CONSTRAINT chk_wallet_balance CHECK (wallet_balance >= 0)
 ) ENGINE=InnoDB;
 
 -- ============================================================================

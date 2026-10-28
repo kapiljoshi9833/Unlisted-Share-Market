@@ -81,13 +81,26 @@ export default function AuthModal({ initialMode = 'signin', onClose, onAuthSucce
       }, 500);
     } catch (err) {
       console.warn("Backend login failed, using fallback:", err.message);
-      let fallbackUser = { user_id: 1, name: "Kapil Joshi", email: "kapil@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: null, shares_owned: 0 };
+      let fallbackUser = { user_id: 1, name: "Kapil Joshi", email: "kapil@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: null, shares_owned: 0, wallet_balance: 100000.00 };
       if (demoKey === 'arjun') {
-        fallbackUser = { user_id: 2, name: "Arjun Verma", email: "arjun@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 1, shares_owned: 400 };
+        fallbackUser = { 
+        user_id: 2, 
+        name: "Arjun Verma", 
+        email: "arjun@valence.local", 
+        role: "Investor", 
+        kyc_status: "VERIFIED", 
+        share_id: 1, 
+        shares_owned: 400, 
+        wallet_balance: 50000.00,
+        company_name: "NovaTech Innovations",
+        share_type: "Equity",
+        current_price: 245,
+        holdings: [{ share_id: 1, company_name: "NovaTech Innovations", share_type: "Equity", shares_owned: 400, current_price: 245, total_value: 98000 }]
+      };
       } else if (demoKey === 'rohan') {
-        fallbackUser = { user_id: 3, name: "Rohan Mehta", email: "rohan@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 2, shares_owned: 300 };
+        fallbackUser = { user_id: 3, name: "Rohan Mehta", email: "rohan@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 2, shares_owned: 300, wallet_balance: 50000.00 };
       } else if (demoKey === 'admin') {
-        fallbackUser = { user_id: 5, name: "Market Admin", email: "admin@valence.local", role: "Admin", kyc_status: "VERIFIED", share_id: null, shares_owned: 0 };
+        fallbackUser = { user_id: 5, name: "Market Admin", email: "admin@valence.local", role: "Admin", kyc_status: "VERIFIED", share_id: null, shares_owned: 0, wallet_balance: 0.00 };
       }
       onAuthSuccess(fallbackUser);
     } finally {

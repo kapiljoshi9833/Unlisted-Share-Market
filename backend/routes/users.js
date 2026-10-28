@@ -26,6 +26,7 @@ router.get('/', async (req, res) => {
         u.kyc_status,
         u.share_id,
         u.shares_owned,
+        u.wallet_balance,
         u.created_at,
         s.share_type,
         s.current_price,
@@ -55,6 +56,7 @@ router.get('/profile-card/:id', async (req, res) => {
         email,
         role,
         kyc_status,
+        wallet_balance,
         created_at
       FROM users
       WHERE user_id = ?
@@ -189,6 +191,7 @@ router.get('/:id', async (req, res) => {
         u.kyc_status,
         u.share_id,
         u.shares_owned,
+        u.wallet_balance,
         u.created_at,
         s.share_type,
         s.current_price,
@@ -264,6 +267,34 @@ router.get('/portfolio/:id', async (req, res) => {
 router.post('/', (req, res, next) => {
   req.url = '/signup';
   authRouter(req, res, next);
+});
+
+
+// PATCH /api/users/:id/wallet - Update user wallet balance directly
+router.patch('/:id/wallet', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, action } = req.body;
+    const numAmount = parseFloat(amount);
+
+    if (isNaN(numAmount) || numAmount < 0) {
+      return res.status(400).json({ error: 'Valid positive amount is required' });
+    }
+
+    if (action === 'set') {
+      await db.query('UPDATE users SET wallet_balance = ? WHERE user_id = ?', [numAmount, id]);
+    } else if (action === 'add') {
+      await db.query('UPDATE users SET wallet_balance = wallet_balance + ? WHERE user_id = ?', [numAmount, id]);
+    } else {
+      await db.query('UPDATE users SET wallet_balance = ? WHERE user_id = ?', [numAmount, id]);
+    }
+
+    const [rows] = await db.query('SELECT user_id, name, wallet_balance FROM users WHERE user_id = ?', [id]);
+    res.status(200).json({ message: 'Wallet balance updated successfully', user: rows[0] });
+  } catch (err) {
+    console.error('Error updating wallet:', err);
+    res.status(500).json({ error: 'Failed to update wallet balance: ' + err.message });
+  }
 });
 
 module.exports = router;

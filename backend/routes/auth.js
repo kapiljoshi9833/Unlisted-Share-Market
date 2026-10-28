@@ -40,8 +40,8 @@ router.post('/signup', async (req, res) => {
 
     // Insert user row into MySQL users table
     const [result] = await db.query(`
-      INSERT INTO users (name, email, password, role, kyc_status, share_id, shares_owned, created_at)
-      VALUES (?, ?, ?, ?, 'VERIFIED', NULL, 0, NOW())
+      INSERT INTO users (name, email, password, role, kyc_status, share_id, shares_owned, wallet_balance, created_at)
+      VALUES (?, ?, ?, ?, 'VERIFIED', NULL, 0, 100000.00, NOW())
     `, [name.trim(), trimmedEmail, hashedPassword, assignedRole]);
 
     const newUser = {
@@ -52,6 +52,7 @@ router.post('/signup', async (req, res) => {
       kyc_status: 'VERIFIED',
       share_id: null,
       shares_owned: 0,
+      wallet_balance: 100000.00,
       created_at: new Date().toISOString()
     };
 
@@ -87,6 +88,7 @@ router.post('/login', async (req, res) => {
         u.kyc_status,
         u.share_id,
         u.shares_owned,
+        u.wallet_balance,
         u.created_at,
         s.share_type,
         s.current_price,
@@ -121,6 +123,24 @@ router.post('/login', async (req, res) => {
     const user = { ...userRecord };
     delete user.password;
 
+    // Attach structured holdings array
+    const [holdings] = await db.query(`
+      SELECT 
+        s.share_id,
+        s.share_type,
+        s.current_price,
+        c.company_id,
+        c.company_name,
+        c.sector,
+        u.shares_owned,
+        ROUND(u.shares_owned * s.current_price, 2) AS total_value
+      FROM users u
+      JOIN shares s ON u.share_id = s.share_id
+      JOIN companies c ON s.company_id = c.company_id
+      WHERE u.user_id = ? AND u.shares_owned > 0
+    `, [user.user_id]);
+    user.holdings = holdings;
+
     res.status(200).json({
       message: 'Authentication successful. Session established.',
       user
@@ -144,6 +164,7 @@ router.get('/me/:userId', async (req, res) => {
         u.kyc_status,
         u.share_id,
         u.shares_owned,
+        u.wallet_balance,
         u.created_at,
         s.share_type,
         s.current_price,
@@ -158,7 +179,23 @@ router.get('/me/:userId', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.status(200).json(rows[0]);
+    const [holdings] = await db.query(`
+      SELECT 
+        s.share_id,
+        s.share_type,
+        s.current_price,
+        c.company_id,
+        c.company_name,
+        c.sector,
+        u.shares_owned,
+        ROUND(u.shares_owned * s.current_price, 2) AS total_value
+      FROM users u
+      JOIN shares s ON u.share_id = s.share_id
+      JOIN companies c ON s.company_id = c.company_id
+      WHERE u.user_id = ? AND u.shares_owned > 0
+    `, [userId]);
+
+    res.status(200).json({ ...rows[0], holdings });
   } catch (err) {
     console.error('Error fetching user profile:', err);
     res.status(500).json({ error: 'Failed to refresh user profile' });

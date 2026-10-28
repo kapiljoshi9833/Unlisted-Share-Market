@@ -180,20 +180,25 @@ router.post('/match', async (req, res) => {
             WHERE user_id = ? AND sell_id = ?
           `, [sell.remaining_quantity, newSellStatus, sell.user_id, sell.sell_id]);
 
-          // D. Update Buyer portfolio holdings in users table
+          const tradeCost = Number((matchQuantity * executionPrice).toFixed(2));
+
+          // D. Update Buyer portfolio holdings & wallet in users table (deduct tradeCost from wallet)
           await connection.query(`
             UPDATE users 
-            SET share_id = ?, shares_owned = COALESCE(shares_owned, 0) + ? 
+            SET share_id = ?, 
+                shares_owned = COALESCE(shares_owned, 0) + ?,
+                wallet_balance = GREATEST(0, COALESCE(wallet_balance, 0) - ?)
             WHERE user_id = ?
-          `, [buy.share_id, matchQuantity, buy.user_id]);
+          `, [buy.share_id, matchQuantity, tradeCost, buy.user_id]);
 
-          // E. Update Seller portfolio holdings (safely floor at zero, reset share_id if 0)
+          // E. Update Seller portfolio holdings & wallet in users table (add tradeCost to wallet)
           await connection.query(`
             UPDATE users 
             SET shares_owned = GREATEST(0, COALESCE(shares_owned, 0) - ?),
-                share_id = CASE WHEN GREATEST(0, COALESCE(shares_owned, 0) - ?) = 0 THEN NULL ELSE share_id END
+                share_id = CASE WHEN GREATEST(0, COALESCE(shares_owned, 0) - ?) = 0 THEN NULL ELSE share_id END,
+                wallet_balance = COALESCE(wallet_balance, 0) + ?
             WHERE user_id = ?
-          `, [matchQuantity, matchQuantity, sell.user_id]);
+          `, [matchQuantity, matchQuantity, tradeCost, sell.user_id]);
 
           // Look up participant and company names for clean UI feedback
           const [partyNames] = await connection.query(`

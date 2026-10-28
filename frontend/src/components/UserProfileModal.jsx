@@ -20,6 +20,30 @@ export default function UserProfileModal({ userId, onClose, onSelectUser }) {
   const [profileData, setProfileData] = useState(null);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('holdings'); // 'holdings' | 'orders' | 'trades'
+  const [editingWallet, setEditingWallet] = useState(false);
+  const [walletInput, setWalletInput] = useState('');
+  const [updatingWallet, setUpdatingWallet] = useState(false);
+
+  const handleSaveWallet = async () => {
+    const amt = parseFloat(walletInput);
+    if (isNaN(amt) || amt < 0) {
+      alert('Please enter a valid non-negative amount.');
+      return;
+    }
+    try {
+      setUpdatingWallet(true);
+      await api.updateUserWallet(userId, amt, 'set');
+      setProfileData(prev => ({
+        ...prev,
+        user: { ...prev.user, wallet_balance: amt }
+      }));
+      setEditingWallet(false);
+    } catch (err) {
+      alert(err.message || 'Failed to update wallet balance');
+    } finally {
+      setUpdatingWallet(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -108,7 +132,49 @@ export default function UserProfileModal({ userId, onClose, onSelectUser }) {
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             
             {/* KEY SUMMARY METRICS */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="p-4 bg-bg border border-border rounded">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-mono text-textMuted uppercase tracking-wider flex items-center space-x-1">
+                    <Wallet size={11} className="text-emerald-400" />
+                    <span>Wallet Cash</span>
+                  </span>
+                  <button 
+                    onClick={() => {
+                      setWalletInput(String(profileData.user?.wallet_balance ?? 100000));
+                      setEditingWallet(!editingWallet);
+                    }}
+                    className="text-[10px] font-mono text-accentBright hover:underline">
+                    {editingWallet ? 'Cancel' : 'Edit'}
+                  </button>
+                </div>
+                {!editingWallet ? (
+                  <>
+                    <div className="text-xl font-bold font-mono text-emerald-400">
+                      ₹{Number(profileData.user?.wallet_balance ?? 100000).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[10px] text-textMuted font-mono mt-0.5">
+                      Available Cash Balance
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-1 space-y-1.5">
+                    <input 
+                      type="number"
+                      value={walletInput}
+                      onChange={(e) => setWalletInput(e.target.value)}
+                      className="w-full bg-surface border border-border rounded px-2 py-1 text-xs font-mono text-textMain focus:outline-none focus:border-accentBright"
+                      placeholder="e.g. 100000"
+                    />
+                    <button 
+                      onClick={handleSaveWallet}
+                      disabled={updatingWallet}
+                      className="w-full py-1 bg-emerald-500 hover:bg-emerald-600 text-bg font-mono text-[10px] font-bold rounded transition disabled:opacity-50">
+                      {updatingWallet ? 'Saving...' : 'Set Funds'}
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="p-4 bg-bg border border-border rounded">
                 <div className="text-[10px] font-mono text-textMuted uppercase tracking-wider mb-1">Portfolio Valuation</div>
                 <div className="text-xl font-bold font-mono text-accentBright">

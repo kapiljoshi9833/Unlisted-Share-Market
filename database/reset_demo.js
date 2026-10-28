@@ -79,17 +79,18 @@ async function seed() {
     console.log('[SEED]   shares: 4 rows');
 
     // ── 3. USERS (Kapil [Buyer, 0 shares] + Sellers + Admin) ───────────────────
-    const investorHash = '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
-    const adminHash    = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p362kim6oh55u.7M5aCCMK';
+    const bcrypt = require(require('path').join(backendDir, 'node_modules', 'bcryptjs'));
+    const investorHash = bcrypt.hashSync('Password@123', 10);
+    const adminHash    = bcrypt.hashSync('admin123', 10);
 
     await conn.query(`
-      INSERT INTO users (user_id, name, email, password, role, kyc_status, share_id, shares_owned, created_at)
+      INSERT INTO users (user_id, name, email, password, role, kyc_status, share_id, shares_owned, wallet_balance, created_at)
       VALUES
-        (1, 'Kapil Joshi',   'kapil@valence.local',   ?, 'Investor', 'VERIFIED', NULL,   0, '2026-01-10 09:00:00'),
-        (2, 'Arjun Verma',   'arjun@valence.local',   ?, 'Investor', 'VERIFIED',    1, 400, '2026-01-11 10:30:00'),
-        (3, 'Rohan Mehta',   'rohan@valence.local',   ?, 'Investor', 'VERIFIED',    2, 300, '2026-01-12 11:15:00'),
-        (4, 'Priya Sharma',  'priya@valence.local',   ?, 'Investor', 'VERIFIED',    4, 200, '2026-01-13 14:00:00'),
-        (5, 'Market Admin',  'admin@valence.local',   ?, 'Admin',    'VERIFIED', NULL,   0, '2026-01-01 08:00:00')
+        (1, 'Kapil Joshi',   'kapil@valence.local',   ?, 'Investor', 'VERIFIED', NULL,   0, 100000.00, '2026-01-10 09:00:00'),
+        (2, 'Arjun Verma',   'arjun@valence.local',   ?, 'Investor', 'VERIFIED',    1, 400,  50000.00, '2026-01-11 10:30:00'),
+        (3, 'Rohan Mehta',   'rohan@valence.local',   ?, 'Investor', 'VERIFIED',    2, 300,  50000.00, '2026-01-12 11:15:00'),
+        (4, 'Priya Sharma',  'priya@valence.local',   ?, 'Investor', 'VERIFIED',    4, 200,  50000.00, '2026-01-13 14:00:00'),
+        (5, 'Market Admin',  'admin@valence.local',   ?, 'Admin',    'VERIFIED', NULL,   0,       0.00, '2026-01-01 08:00:00')
     `, [investorHash, investorHash, investorHash, investorHash, adminHash]);
     console.log('[SEED]   users: 5 rows (Kapil Joshi [Buyer], Arjun [Seller 400 NovaTech], Rohan [Seller 300 GreenGrid], Priya [Seller 200 BioHealth], Admin)');
 

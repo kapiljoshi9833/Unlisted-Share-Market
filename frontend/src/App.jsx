@@ -34,7 +34,8 @@ import {
   LogOut,
   RefreshCw,
   Database,
-  UserCheck
+  UserCheck,
+  Wallet
 } from 'lucide-react';
 
 export default function App() {
@@ -85,7 +86,7 @@ export default function App() {
   const activeSelectedShare = getShare(selectedShareId);
 
   // Centralized Data Fetcher from MySQL Backend
-  const loadAllData = useCallback(async () => {
+  const loadAllData = useCallback(async (forcedUserId) => {
     try {
       setLoading(true);
       const [
@@ -118,8 +119,9 @@ export default function App() {
       setLastRefreshed(new Date().toLocaleTimeString());
 
       // Refresh current user holdings if logged in
-      if (currentUser?.user_id) {
-        const userRes = await api.getUserProfile(currentUser.user_id).catch(() => null);
+      const uid = forcedUserId || currentUser?.user_id;
+      if (uid) {
+        const userRes = await api.getUserProfile(uid).catch(() => null);
         if (userRes && userRes.user_id) {
           setCurrentUser(userRes);
           try {
@@ -273,14 +275,15 @@ export default function App() {
           <AuthModal 
             initialMode={authModal}
             onClose={() => setAuthModal(null)}
-            onAuthSuccess={(user) => {
-              setCurrentUser(user);
+            onAuthSuccess={async (user) => {
+              const fresh = await api.getUserProfile(user.user_id).catch(() => user);
+              setCurrentUser(fresh);
               try {
-                localStorage.setItem('valence_user', JSON.stringify(user));
+                localStorage.setItem('valence_user', JSON.stringify(fresh));
               } catch {}
               setAuthModal(null);
               setActiveView('terminal');
-              loadAllData();
+              loadAllData(fresh.user_id);
             }}
           />
         )}
@@ -415,6 +418,10 @@ export default function App() {
             <div className="truncate pr-2">
               <div className="text-sm font-medium text-textMain truncate">{currentUser?.name || "Kapil Sharma"}</div>
               <div className="text-xs text-textMuted">{currentUser?.role || "Investor"} • User #{currentUser?.user_id}</div>
+              <div className="text-[11px] font-mono text-emerald-400 flex items-center space-x-1 mt-0.5">
+                <Wallet size={11} />
+                <span>₹{Number(currentUser?.wallet_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
             </div>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono border border-accentDark text-accentBright bg-accentDark/20 shrink-0">
               ● {currentUser?.kyc_status || "VERIFIED"}
@@ -452,6 +459,14 @@ export default function App() {
             <span className="text-xs font-mono text-accentBright tracking-wider uppercase">{activeTab}</span>
           </div>
           <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 text-xs font-mono border border-emerald-500/30 px-3 py-1.5 rounded bg-emerald-500/10 text-emerald-400">
+              <Wallet size={13} className="text-emerald-400" />
+              <span className="text-textMuted hidden sm:inline">WALLET:</span>
+              <span className="font-semibold text-emerald-400">
+                ₹{Number(currentUser?.wallet_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
             <div className="flex items-center space-x-2 text-xs font-mono border border-border px-3 py-1 rounded bg-bg">
               <Database size={13} className={dbConnected ? "text-accentBright" : "text-sellRed"} />
               <span className="text-textMuted hidden sm:inline">DATABASE:</span>
@@ -481,7 +496,18 @@ export default function App() {
                 <p className="text-sm text-textMuted mt-1">Live market overview and portfolio summary</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="p-5 border border-border rounded bg-surface">
+                  <div className="text-xs font-mono text-textMuted uppercase tracking-wider flex items-center space-x-1.5">
+                    <Wallet size={12} className="text-emerald-400" />
+                    <span>Wallet Cash</span>
+                  </div>
+                  <div className="text-2xl font-mono font-semibold text-emerald-400 mt-2">
+                    ₹{Number(currentUser?.wallet_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[11px] font-mono text-textMuted mt-1">Liquid trading funds</div>
+                </div>
+
                 <div className="p-5 border border-border rounded bg-surface">
                   <div className="text-xs font-mono text-textMuted uppercase tracking-wider">Total Holdings Value</div>
                   <div className="text-2xl font-mono font-semibold text-textMain mt-2">
@@ -816,7 +842,7 @@ export default function App() {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="p-3 border border-border rounded bg-bg">
                     <div className="text-[10px] font-mono text-textMuted">AVAILABLE SHARES</div>
                     <div className="text-base font-mono font-medium text-textMain mt-1">
@@ -827,6 +853,15 @@ export default function App() {
                     <div className="text-[10px] font-mono text-textMuted">FACE VALUE</div>
                     <div className="text-base font-mono font-medium text-textMain mt-1">
                       ₹{Number(activeSelectedShare.face_value || 10).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="p-3 border border-border rounded bg-bg">
+                    <div className="text-[10px] font-mono text-textMuted flex items-center space-x-1">
+                      <Wallet size={11} className="text-emerald-400" />
+                      <span>WALLET CASH</span>
+                    </div>
+                    <div className="text-base font-mono font-medium text-emerald-400 mt-1">
+                      ₹{Number(currentUser?.wallet_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
                   </div>
                 </div>

@@ -56,6 +56,12 @@ export const api = {
   getUserProfileCard: (userId) =>
     request(`/users/profile-card/${userId}`),
 
+  updateUserWallet: (userId, amount, action = 'set') =>
+    request(`/users/${userId}/wallet`, {
+      method: 'PATCH',
+      body: JSON.stringify({ amount, action })
+    }),
+
   // Market & Securities Data
   getCompanies: () => 
     request('/companies'),
