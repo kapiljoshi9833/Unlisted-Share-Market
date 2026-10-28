@@ -66,6 +66,9 @@ export default function AuthModal({ initialMode = 'signin', onClose, onAuthSucce
       if (demoKey === 'arjun') {
         demoEmail = 'arjun@valence.local';
         demoPass = 'Password@123';
+      } else if (demoKey === 'rohan') {
+        demoEmail = 'rohan@valence.local';
+        demoPass = 'Password@123';
       } else if (demoKey === 'admin') {
         demoEmail = 'admin@valence.local';
         demoPass = 'admin123';
@@ -80,9 +83,11 @@ export default function AuthModal({ initialMode = 'signin', onClose, onAuthSucce
       console.warn("Backend login failed, using fallback:", err.message);
       let fallbackUser = { user_id: 1, name: "Kapil Joshi", email: "kapil@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: null, shares_owned: 0 };
       if (demoKey === 'arjun') {
-        fallbackUser = { user_id: 2, name: "Arjun Verma", email: "arjun@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 1, shares_owned: 300 };
+        fallbackUser = { user_id: 2, name: "Arjun Verma", email: "arjun@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 1, shares_owned: 400 };
+      } else if (demoKey === 'rohan') {
+        fallbackUser = { user_id: 3, name: "Rohan Mehta", email: "rohan@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 2, shares_owned: 300 };
       } else if (demoKey === 'admin') {
-        fallbackUser = { user_id: 3, name: "Market Admin", email: "admin@valence.local", role: "Admin", kyc_status: "VERIFIED", share_id: null, shares_owned: 0 };
+        fallbackUser = { user_id: 5, name: "Market Admin", email: "admin@valence.local", role: "Admin", kyc_status: "VERIFIED", share_id: null, shares_owned: 0 };
       }
       onAuthSuccess(fallbackUser);
     } finally {
@@ -248,26 +253,33 @@ export default function AuthModal({ initialMode = 'signin', onClose, onAuthSucce
             <div className="text-[10px] font-mono text-textMuted uppercase tracking-wider text-center mb-2">
               ⚡ 1-Click Evaluation Access (Stored in MySQL)
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-1.5">
               <button 
                 type="button"
                 disabled={loading}
                 onClick={() => handleDemoLogin('kapil')}
-                className="py-2 px-1 text-[11px] font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
+                className="py-2 px-1 text-[10px] font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
                 Kapil (Buyer)
               </button>
               <button 
                 type="button"
                 disabled={loading}
+                onClick={() => handleDemoLogin('rohan')}
+                className="py-2 px-1 text-[10px] font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
+                Rohan (GreenGrid)
+              </button>
+              <button 
+                type="button"
+                disabled={loading}
                 onClick={() => handleDemoLogin('arjun')}
-                className="py-2 px-1 text-[11px] font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
-                Arjun (Seller)
+                className="py-2 px-1 text-[10px] font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
+                Arjun (NovaTech)
               </button>
               <button 
                 type="button"
                 disabled={loading}
                 onClick={() => handleDemoLogin('admin')}
-                className="py-2 px-1 text-[11px] font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
+                className="py-2 px-1 text-[10px] font-mono border border-border hover:border-accentDark rounded bg-bg text-textMain hover:text-accentBright transition text-center disabled:opacity-50">
                 Admin
               </button>
             </div>

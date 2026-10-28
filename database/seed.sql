@@ -1,12 +1,10 @@
 -- ============================================================================
 -- VALENCE-X: Unlisted Securities Exchange
--- SEED DATA SCRIPT (DEMO READY)
+-- SEED DATA SCRIPT (DEMO READY & MATCH VERIFIED)
 -- ============================================================================
 -- Academic Demonstration Dataset
 -- Fully complies with all Phase I constraints, foreign keys, and domain checks.
 -- Passwords are encrypted using bcrypt (cost 10) for 'Password@123' / 'admin123'.
--- Note: 'Kapil Joshi' and 'Dhruvan Joshi' are NOT seeded so live sign-up /
--- sign-in can be performed cleanly in front of evaluators!
 -- ============================================================================
 
 USE unlisted_securities_exchange;
@@ -44,41 +42,45 @@ INSERT INTO shares (share_id, company_id, share_type, total_shares, available_sh
 (4, 4, 'Equity', 30000, 2500, 10.00, 320.00, '2026-01-09 10:00:00');
 
 -- ----------------------------------------------------------------------------
--- 3. USERS (Arjun, Rohan, Priya, Vikram, Admin — NO Kapil/Dhruvan for live viva)
+-- 3. USERS (Kapil Joshi [Buyer] + Sellers + Admin)
 -- Password hash: 'Password@123' for investors, 'admin123' for admin.
 -- ----------------------------------------------------------------------------
 INSERT INTO users (user_id, name, email, password, role, kyc_status, share_id, shares_owned, created_at) VALUES
-(1, 'Arjun Verma',     'arjun@valence.local',   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Investor', 'VERIFIED', 1, 400, '2026-01-10 09:00:00'),
-(2, 'Rohan Mehta',     'rohan@valence.local',   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Investor', 'VERIFIED', 2, 300, '2026-01-11 10:30:00'),
-(3, 'Priya Sharma',    'priya@valence.local',   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Investor', 'VERIFIED', 4, 200, '2026-01-12 11:15:00'),
-(4, 'Vikram Malhotra', 'vikram@valence.local',  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Investor', 'VERIFIED', NULL, 0, '2026-01-13 14:00:00'),
-(5, 'Market Admin',    'admin@valence.local',   '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p362kim6oh55u.7M5aCCMK', 'Admin',    'VERIFIED', NULL, 0, '2026-01-01 08:00:00');
+(1, 'Kapil Joshi',   'kapil@valence.local',   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Investor', 'VERIFIED', NULL, 0, '2026-01-10 09:00:00'),
+(2, 'Arjun Verma',   'arjun@valence.local',   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Investor', 'VERIFIED', 1, 400, '2026-01-11 10:30:00'),
+(3, 'Rohan Mehta',   'rohan@valence.local',   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Investor', 'VERIFIED', 2, 300, '2026-01-12 11:15:00'),
+(4, 'Priya Sharma',  'priya@valence.local',   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Investor', 'VERIFIED', 4, 200, '2026-01-13 14:00:00'),
+(5, 'Market Admin',  'admin@valence.local',   '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p362kim6oh55u.7M5aCCMK', 'Admin',    'VERIFIED', NULL, 0, '2026-01-01 08:00:00');
 
 -- ----------------------------------------------------------------------------
--- 4. BUY ORDERS (Active bids in order book)
+-- 4. BUY ORDERS
+-- Buy #1 & #2: Settled counterparties for historical TXN-1 & TXN-2 (remaining_qty = 0, COMPLETED)
+-- Buy #3 & #4: Passive open bids at prices below market so they NEVER intercept live trades
 -- ----------------------------------------------------------------------------
 INSERT INTO buy (buy_id, user_id, share_id, quantity, price, remaining_quantity, buy_status, created_at) VALUES
-(1, 4, 1, 150, 245.00,  50, 'PARTIAL', '2026-10-14 10:00:00'),
-(2, 4, 2, 100,  92.00, 100, 'PENDING', '2026-10-15 11:15:00'),
-(3, 2, 4,  50, 315.00,  50, 'PENDING', '2026-10-16 14:30:00'),
-(4, 3, 2,  80,  94.00,  40, 'PARTIAL', '2026-10-17 09:45:00');
+(1, 4, 1, 100, 245.00,  0, 'COMPLETED', '2026-10-14 10:00:00'),
+(2, 4, 2,  40,  94.00,  0, 'COMPLETED', '2026-10-15 11:15:00'),
+(3, 4, 2,  30,  75.00, 30, 'PENDING',   '2026-10-16 09:30:00'),
+(4, 4, 1,  20, 210.00, 20, 'PENDING',   '2026-10-16 14:30:00');
 
 -- ----------------------------------------------------------------------------
--- 5. SELL ORDERS (Active asks in order book + completed counterparties)
+-- 5. SELL ORDERS
+-- Sell #1 & #2: Settled counterparties for historical TXN-1 & TXN-2 (remaining_qty = 0, COMPLETED)
+-- Sell #3, #4, #5: Passive open asks at prices above market so they NEVER intercept live trades
 -- ----------------------------------------------------------------------------
 INSERT INTO sell (sell_id, user_id, share_id, quantity, price, remaining_quantity, sell_status, created_at) VALUES
-(1, 1, 1, 100, 255.00, 100, 'PENDING',   '2026-10-14 09:30:00'),
-(2, 2, 2, 100,  96.00, 100, 'PENDING',   '2026-10-15 10:00:00'),
-(3, 3, 4,  50, 325.00,  50, 'PENDING',   '2026-10-16 12:00:00'),
-(4, 1, 1, 100, 245.00,   0, 'COMPLETED', '2026-10-14 10:30:00'),
-(5, 2, 2,  40,  94.00,   0, 'COMPLETED', '2026-10-17 10:15:00');
+(1, 2, 1, 100, 245.00,  0, 'COMPLETED', '2026-10-14 09:30:00'),
+(2, 3, 2,  40,  94.00,  0, 'COMPLETED', '2026-10-15 10:00:00'),
+(3, 2, 1,  50, 280.00, 50, 'PENDING',   '2026-10-16 10:00:00'),
+(4, 3, 2,  50, 115.00, 50, 'PENDING',   '2026-10-16 11:30:00'),
+(5, 4, 4,  40, 350.00, 40, 'PENDING',   '2026-10-16 12:00:00');
 
 -- ----------------------------------------------------------------------------
 -- 6. TRANSACTIONS (Settled audit ledger)
 -- ----------------------------------------------------------------------------
 INSERT INTO transactions (transaction_id, buyer_id, buy_id, seller_id, sell_id, share_id, quantity, price, transaction_time) VALUES
-(1, 4, 1, 1, 4, 1, 100, 245.00, '2026-10-15 11:30:00'),
-(2, 3, 4, 2, 5, 2,  40,  94.00, '2026-10-18 14:15:00');
+(1, 4, 1, 2, 1, 1, 100, 245.00, '2026-10-15 11:30:00'),
+(2, 4, 2, 3, 2, 2,  40,  94.00, '2026-10-18 14:15:00');
 
 -- ----------------------------------------------------------------------------
 -- 7. ESOPS

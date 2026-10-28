@@ -6,12 +6,11 @@ export const BRAND = {
 };
 
 // 1. Users Table (user_id, name, email, password, role, kyc_status, share_id, shares_owned, created_at)
-// NOTE: Kapil Joshi and Dhruvan Joshi are NOT seeded so live viva sign-up / sign-in can be performed cleanly!
 export const initialUsers = [
-  { user_id: 1, name: "Arjun Verma", email: "arjun@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 1, shares_owned: 400, created_at: "2026-01-10" },
-  { user_id: 2, name: "Rohan Mehta", email: "rohan@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 2, shares_owned: 300, created_at: "2026-01-11" },
-  { user_id: 3, name: "Priya Sharma", email: "priya@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 4, shares_owned: 200, created_at: "2026-01-12" },
-  { user_id: 4, name: "Vikram Malhotra", email: "vikram@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: null, shares_owned: 0, created_at: "2026-01-13" },
+  { user_id: 1, name: "Kapil Joshi", email: "kapil@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: null, shares_owned: 0, created_at: "2026-01-10" },
+  { user_id: 2, name: "Arjun Verma", email: "arjun@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 1, shares_owned: 400, created_at: "2026-01-11" },
+  { user_id: 3, name: "Rohan Mehta", email: "rohan@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 2, shares_owned: 300, created_at: "2026-01-12" },
+  { user_id: 4, name: "Priya Sharma", email: "priya@valence.local", role: "Investor", kyc_status: "VERIFIED", share_id: 4, shares_owned: 200, created_at: "2026-01-13" },
   { user_id: 5, name: "Market Admin", email: "admin@valence.local", role: "Admin", kyc_status: "VERIFIED", share_id: null, shares_owned: 0, created_at: "2026-01-01" }
 ];
 
@@ -34,23 +33,25 @@ export const initialShares = [
 
 // 4. Buy Table (buy_id, user_id, share_id, quantity, price, remaining_quantity, buy_status, created_at)
 export const initialBuyOrders = [
-  { buy_id: 1, user_id: 4, share_id: 1, quantity: 150, price: 245, remaining_quantity: 50, buy_status: 'PARTIAL', created_at: '2026-10-14 10:00:00' },
-  { buy_id: 2, user_id: 4, share_id: 2, quantity: 100, price: 92, remaining_quantity: 100, buy_status: 'PENDING', created_at: '2026-10-15 11:15:00' },
-  { buy_id: 3, user_id: 2, share_id: 4, quantity: 50, price: 315, remaining_quantity: 50, buy_status: 'PENDING', created_at: '2026-10-16 14:30:00' },
-  { buy_id: 4, user_id: 3, share_id: 2, quantity: 80, price: 94, remaining_quantity: 40, buy_status: 'PARTIAL', created_at: '2026-10-17 09:45:00' }
+  { buy_id: 1, user_id: 4, share_id: 1, quantity: 100, price: 245, remaining_quantity: 0, buy_status: 'COMPLETED', created_at: '2026-10-14 10:00:00' },
+  { buy_id: 2, user_id: 4, share_id: 2, quantity: 40, price: 94, remaining_quantity: 0, buy_status: 'COMPLETED', created_at: '2026-10-15 11:15:00' },
+  { buy_id: 3, user_id: 4, share_id: 2, quantity: 30, price: 75, remaining_quantity: 30, buy_status: 'PENDING', created_at: '2026-10-16 09:30:00' },
+  { buy_id: 4, user_id: 4, share_id: 1, quantity: 20, price: 210, remaining_quantity: 20, buy_status: 'PENDING', created_at: '2026-10-16 14:30:00' }
 ];
 
 // 5. Sell Table (sell_id, user_id, share_id, quantity, price, remaining_quantity, sell_status, created_at)
 export const initialSellOrders = [
-  { sell_id: 1, user_id: 1, share_id: 1, quantity: 100, price: 255, remaining_quantity: 100, sell_status: 'PENDING', created_at: '2026-10-14 09:30:00' },
-  { sell_id: 2, user_id: 2, share_id: 2, quantity: 100, price: 96, remaining_quantity: 100, sell_status: 'PENDING', created_at: '2026-10-15 10:00:00' },
-  { sell_id: 3, user_id: 3, share_id: 4, quantity: 50, price: 325, remaining_quantity: 50, sell_status: 'PENDING', created_at: '2026-10-16 12:00:00' }
+  { sell_id: 1, user_id: 2, share_id: 1, quantity: 100, price: 245, remaining_quantity: 0, sell_status: 'COMPLETED', created_at: '2026-10-14 09:30:00' },
+  { sell_id: 2, user_id: 3, share_id: 2, quantity: 40, price: 94, remaining_quantity: 0, sell_status: 'COMPLETED', created_at: '2026-10-15 10:00:00' },
+  { sell_id: 3, user_id: 2, share_id: 1, quantity: 50, price: 280, remaining_quantity: 50, sell_status: 'PENDING', created_at: '2026-10-16 10:00:00' },
+  { sell_id: 4, user_id: 3, share_id: 2, quantity: 50, price: 115, remaining_quantity: 50, sell_status: 'PENDING', created_at: '2026-10-16 11:30:00' },
+  { sell_id: 5, user_id: 4, share_id: 4, quantity: 40, price: 350, remaining_quantity: 40, sell_status: 'PENDING', created_at: '2026-10-16 12:00:00' }
 ];
 
 // 6. Transactions Table (transaction_id, buy_id, sell_id, share_id, quantity, price, transaction_time)
 export const initialTransactions = [
-  { transaction_id: 1, buyer_id: 4, buy_id: 1, seller_id: 1, sell_id: 4, share_id: 1, quantity: 100, price: 245, transaction_time: '2026-10-15 11:30:00' },
-  { transaction_id: 2, buyer_id: 3, buy_id: 4, seller_id: 2, sell_id: 5, share_id: 2, quantity: 40, price: 94, transaction_time: '2026-10-18 14:15:00' }
+  { transaction_id: 1, buyer_id: 4, buy_id: 1, seller_id: 2, sell_id: 1, share_id: 1, quantity: 100, price: 245, transaction_time: '2026-10-15 11:30:00' },
+  { transaction_id: 2, buyer_id: 4, buy_id: 2, seller_id: 3, sell_id: 2, share_id: 2, quantity: 40, price: 94, transaction_time: '2026-10-18 14:15:00' }
 ];
 
 // 7. ESOPs Table (esop_id, user_id, company_id, number_of_options, exercise_price, vesting_period, exercise_status, grant_date, expiry_date)

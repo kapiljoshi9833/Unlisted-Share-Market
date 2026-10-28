@@ -23,12 +23,12 @@ router.get('/', async (req, res) => {
         t.transaction_time,
         'COMPLETED' AS status
       FROM transactions t
-      JOIN buy b ON (t.buyer_id = b.user_id AND t.buy_id = b.buy_id)
-      JOIN sell sl ON (t.seller_id = sl.user_id AND t.sell_id = sl.sell_id)
-      JOIN users ub ON t.buyer_id = ub.user_id
-      JOIN users us ON t.seller_id = us.user_id
-      JOIN shares s ON t.share_id = s.share_id
-      JOIN companies c ON s.company_id = c.company_id
+      LEFT JOIN buy b ON (t.buyer_id = b.user_id AND t.buy_id = b.buy_id)
+      LEFT JOIN sell sl ON (t.seller_id = sl.user_id AND t.sell_id = sl.sell_id)
+      LEFT JOIN users ub ON t.buyer_id = ub.user_id
+      LEFT JOIN users us ON t.seller_id = us.user_id
+      LEFT JOIN shares s ON t.share_id = s.share_id
+      LEFT JOIN companies c ON s.company_id = c.company_id
       ORDER BY t.transaction_time DESC, t.transaction_id DESC
     `);
     res.status(200).json(transactions);
@@ -195,13 +195,33 @@ router.post('/match', async (req, res) => {
             WHERE user_id = ?
           `, [matchQuantity, matchQuantity, sell.user_id]);
 
+          // Look up participant and company names for clean UI feedback
+          const [partyNames] = await connection.query(`
+            SELECT 
+              ub.name AS buyer_name, 
+              us.name AS seller_name, 
+              c.company_name, 
+              s.share_type
+            FROM users ub
+            JOIN users us ON us.user_id = ?
+            JOIN shares s ON s.share_id = ?
+            JOIN companies c ON s.company_id = c.company_id
+            WHERE ub.user_id = ?
+          `, [sell.user_id, buy.share_id, buy.user_id]);
+
+          const pInfo = partyNames[0] || {};
+
           createdTransactions.push({
             transaction_id: txnResult.insertId,
             buyer_id: buy.user_id,
+            buyer_name: pInfo.buyer_name || `User #${buy.user_id}`,
             buy_id: buy.buy_id,
             seller_id: sell.user_id,
+            seller_name: pInfo.seller_name || `User #${sell.user_id}`,
             sell_id: sell.sell_id,
             share_id: buy.share_id,
+            company_name: pInfo.company_name || 'Security',
+            share_type: pInfo.share_type || 'Equity',
             quantity: matchQuantity,
             price: executionPrice,
             total_value: Number((matchQuantity * executionPrice).toFixed(2))
@@ -216,10 +236,14 @@ router.post('/match', async (req, res) => {
     // Commit atomic transaction
     await connection.commit();
 
+    const summaryText = createdTransactions.length > 0
+      ? `Settled ${createdTransactions.length} trade(s):\n` + createdTransactions.map(t => 
+          `• ${t.buyer_name} bought ${t.quantity} shares of ${t.company_name} from ${t.seller_name} @ ₹${t.price} (Total: ₹${t.total_value.toLocaleString('en-IN')})`
+        ).join('\n')
+      : 'No crossing orders found at current bid/ask spreads';
+
     res.status(200).json({
-      message: createdTransactions.length > 0
-        ? `Successfully executed and settled ${createdTransactions.length} transaction(s)`
-        : 'No crossing orders found at current bid/ask spreads',
+      message: summaryText,
       matched_count: createdTransactions.length,
       transactions: createdTransactions
     });

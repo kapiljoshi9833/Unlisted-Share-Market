@@ -3,11 +3,21 @@
  * ====================================================
  * Wipes and re-seeds the database with:
  * - 5 Companies & 4 Share Classes (AeroSpace Dynamics has no shares for Q4 anti-join)
- * - 4 Market Participants (Arjun Verma, Rohan Mehta, Priya Sharma, Vikram Malhotra) + 1 Admin
- * - NO Kapil Joshi or Dhruvan Joshi (Reserved for live sign-up / sign-in during evaluation!)
- * - Active Buy & Sell Orders for live order book (vw_open_buy_orders, vw_open_sell_orders)
- * - Settled Historical Transactions for ledger (vw_transaction_history, VWAP Q7, 6-table join Q1)
- * - Real ESOP Grants (vw_esop_information) & Corporate Debentures (vw_debenture_information)
+ * - Users:
+ *     1. Kapil Joshi (Buyer, 0 shares) - kapil@valence.local / Password@123
+ *     2. Arjun Verma (Seller, 400 shares NovaTech) - arjun@valence.local / Password@123
+ *     3. Rohan Mehta (Seller, 300 shares GreenGrid) - rohan@valence.local / Password@123
+ *     4. Priya Sharma (Seller, 200 shares BioHealth) - priya@valence.local / Password@123
+ *     5. Market Admin - admin@valence.local / admin123
+ *   * Personal emails like kapiljoshi9833@gmail.com and dhruvan... are NOT in the database,
+ *     so live Sign-Up during the viva works cleanly!
+ * - Historical Settled Transactions (TXN-1, TXN-2) with counterparties marked COMPLETED (rem_qty = 0)
+ *   so they NEVER interfere with or intercept live test trades!
+ * - Passive Open Bids & Asks with non-crossing OTC spread so:
+ *     - When Kapil bids at market price (e.g. ₹94 for GreenGrid or ₹245 for NovaTech),
+ *       Kapil is the HIGHEST BIDDER.
+ *     - When friend sells at market price, friend is the LOWEST ASKER.
+ *     - Kapil and friend match 100% DIRECTLY with each other!
  *
  * Run anytime:
  *   node database/reset_demo.js  or  npm run reset:demo
@@ -31,7 +41,6 @@ async function seed() {
   console.log('[VALENCE-X] Connected to MySQL on port', DB.port);
 
   try {
-    // Disable FK checks and Triggers temporarily to populate clean seed data
     await conn.query('SET FOREIGN_KEY_CHECKS = 0');
     await conn.query('TRUNCATE TABLE transactions');
     await conn.query('TRUNCATE TABLE buy');
@@ -69,53 +78,56 @@ async function seed() {
     `);
     console.log('[SEED]   shares: 4 rows');
 
-    // ── 3. USERS (Market Participants + Admin — NO Kapil Joshi or Dhruvan Joshi) ─
-    // bcrypt hash for 'Password@123' and 'admin123'
+    // ── 3. USERS (Kapil [Buyer, 0 shares] + Sellers + Admin) ───────────────────
     const investorHash = '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
     const adminHash    = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p362kim6oh55u.7M5aCCMK';
 
     await conn.query(`
       INSERT INTO users (user_id, name, email, password, role, kyc_status, share_id, shares_owned, created_at)
       VALUES
-        (1, 'Arjun Verma',     'arjun@valence.local',   ?, 'Investor', 'VERIFIED',    1, 400, '2026-01-10 09:00:00'),
-        (2, 'Rohan Mehta',     'rohan@valence.local',   ?, 'Investor', 'VERIFIED',    2, 300, '2026-01-11 10:30:00'),
-        (3, 'Priya Sharma',    'priya@valence.local',   ?, 'Investor', 'VERIFIED',    4, 200, '2026-01-12 11:15:00'),
-        (4, 'Vikram Malhotra', 'vikram@valence.local',  ?, 'Investor', 'VERIFIED', NULL,   0, '2026-01-13 14:00:00'),
-        (5, 'Market Admin',    'admin@valence.local',   ?, 'Admin',    'VERIFIED', NULL,   0, '2026-01-01 08:00:00')
+        (1, 'Kapil Joshi',   'kapil@valence.local',   ?, 'Investor', 'VERIFIED', NULL,   0, '2026-01-10 09:00:00'),
+        (2, 'Arjun Verma',   'arjun@valence.local',   ?, 'Investor', 'VERIFIED',    1, 400, '2026-01-11 10:30:00'),
+        (3, 'Rohan Mehta',   'rohan@valence.local',   ?, 'Investor', 'VERIFIED',    2, 300, '2026-01-12 11:15:00'),
+        (4, 'Priya Sharma',  'priya@valence.local',   ?, 'Investor', 'VERIFIED',    4, 200, '2026-01-13 14:00:00'),
+        (5, 'Market Admin',  'admin@valence.local',   ?, 'Admin',    'VERIFIED', NULL,   0, '2026-01-01 08:00:00')
     `, [investorHash, investorHash, investorHash, investorHash, adminHash]);
-    console.log('[SEED]   users: 5 rows (Arjun, Rohan, Priya, Vikram, Admin — Kapil & Dhruvan ready for live signup)');
+    console.log('[SEED]   users: 5 rows (Kapil Joshi [Buyer], Arjun [Seller 400 NovaTech], Rohan [Seller 300 GreenGrid], Priya [Seller 200 BioHealth], Admin)');
 
-    // ── 4. BUY ORDERS (Weak entity with composite PK: user_id, buy_id) ─────────
+    // ── 4. BUY ORDERS ──────────────────────────────────────────────────────────
+    // Buy #1 & #2: Settled counterparties for historical TXN-1 & TXN-2 (remaining_qty = 0, COMPLETED)
+    // Buy #3 & #4: Passive open bids at prices below market so they NEVER intercept live trades
     await conn.query(`
       INSERT INTO buy (buy_id, user_id, share_id, quantity, price, remaining_quantity, buy_status, created_at)
       VALUES
-        (1, 4, 1, 150, 245.00,  50, 'PARTIAL', '2026-10-14 10:00:00'),
-        (2, 4, 2, 100,  92.00, 100, 'PENDING', '2026-10-15 11:15:00'),
-        (3, 2, 4,  50, 315.00,  50, 'PENDING', '2026-10-16 14:30:00'),
-        (4, 3, 2,  80,  94.00,  40, 'PARTIAL', '2026-10-17 09:45:00')
+        (1, 4, 1, 100, 245.00,  0, 'COMPLETED', '2026-10-14 10:00:00'),
+        (2, 4, 2,  40,  94.00,  0, 'COMPLETED', '2026-10-15 11:15:00'),
+        (3, 4, 2,  30,  75.00, 30, 'PENDING',   '2026-10-16 09:30:00'),
+        (4, 4, 1,  20, 210.00, 20, 'PENDING',   '2026-10-16 14:30:00')
     `);
-    console.log('[SEED]   buy orders: 4 rows (Active bids in order book)');
+    console.log('[SEED]   buy orders: 4 rows (2 settled historical, 2 passive bids below market)');
 
-    // ── 5. SELL ORDERS (Weak entity with composite PK: user_id, sell_id) ────────
+    // ── 5. SELL ORDERS ─────────────────────────────────────────────────────────
+    // Sell #1 & #2: Settled counterparties for historical TXN-1 & TXN-2 (remaining_qty = 0, COMPLETED)
+    // Sell #3, #4, #5: Passive open asks at prices above market so they NEVER intercept live trades
     await conn.query(`
       INSERT INTO sell (sell_id, user_id, share_id, quantity, price, remaining_quantity, sell_status, created_at)
       VALUES
-        (1, 1, 1, 100, 255.00, 100, 'PENDING',   '2026-10-14 09:30:00'),
-        (2, 2, 2, 100,  96.00, 100, 'PENDING',   '2026-10-15 10:00:00'),
-        (3, 3, 4,  50, 325.00,  50, 'PENDING',   '2026-10-16 12:00:00'),
-        (4, 1, 1, 100, 245.00,   0, 'COMPLETED', '2026-10-14 10:30:00'),
-        (5, 2, 2,  40,  94.00,   0, 'COMPLETED', '2026-10-17 10:15:00')
+        (1, 2, 1, 100, 245.00,  0, 'COMPLETED', '2026-10-14 09:30:00'),
+        (2, 3, 2,  40,  94.00,  0, 'COMPLETED', '2026-10-15 10:00:00'),
+        (3, 2, 1,  50, 280.00, 50, 'PENDING',   '2026-10-16 10:00:00'),
+        (4, 3, 2,  50, 115.00, 50, 'PENDING',   '2026-10-16 11:30:00'),
+        (5, 4, 4,  40, 350.00, 40, 'PENDING',   '2026-10-16 12:00:00')
     `);
-    console.log('[SEED]   sell orders: 5 rows (3 open asks, 2 filled counterparties)');
+    console.log('[SEED]   sell orders: 5 rows (2 settled historical, 3 passive asks above market)');
 
     // ── 6. TRANSACTIONS (Settled audit ledger) ─────────────────────────────────
     await conn.query(`
       INSERT INTO transactions (transaction_id, buyer_id, buy_id, seller_id, sell_id, share_id, quantity, price, transaction_time)
       VALUES
-        (1, 4, 1, 1, 4, 1, 100, 245.00, '2026-10-15 11:30:00'),
-        (2, 3, 4, 2, 5, 2,  40,  94.00, '2026-10-18 14:15:00')
+        (1, 4, 1, 2, 1, 1, 100, 245.00, '2026-10-15 11:30:00'),
+        (2, 4, 2, 3, 2, 2,  40,  94.00, '2026-10-18 14:15:00')
     `);
-    console.log('[SEED]   transactions: 2 rows (Executed trades connecting buyer, seller, securities)');
+    console.log('[SEED]   transactions: 2 rows (Executed historical trades)');
 
     // ── 7. ESOPS (Employee Stock Options) ──────────────────────────────────────
     await conn.query(`
@@ -137,14 +149,14 @@ async function seed() {
     `);
     console.log('[SEED]   debentures: 3 rows');
 
-    console.log('\n[DONE] ✅ Demonstration dataset seeded successfully into MySQL!');
-    console.log('       Sample Accounts:');
-    console.log('         1. Arjun Verma:     arjun@valence.local   / Password@123  (400 shs NovaTech)');
-    console.log('         2. Rohan Mehta:     rohan@valence.local   / Password@123  (300 shs GreenGrid)');
-    console.log('         3. Priya Sharma:    priya@valence.local   / Password@123  (200 shs BioHealth)');
-    console.log('         4. Vikram Malhotra: vikram@valence.local  / Password@123  (0 shs, Pure Buyer)');
-    console.log('         5. Market Admin:    admin@valence.local   / admin123');
-    console.log('       * Kapil Joshi & Dhruvan Joshi are completely free for live sign-up during viva!\n');
+    console.log('\n[DONE] ✅ Perfect demonstration dataset seeded into MySQL!');
+    console.log('       Accounts (Password: Password@123):');
+    console.log('         1. Kapil Joshi (Buyer):        kapil@valence.local   (0 shares in custody)');
+    console.log('         2. Arjun Verma (Seller):       arjun@valence.local   (400 shares NovaTech Innovations)');
+    console.log('         3. Rohan Mehta (Seller):       rohan@valence.local   (300 shares GreenGrid Energy)');
+    console.log('         4. Priya Sharma (Seller):      priya@valence.local   (200 shares BioHealth Diagnostics)');
+    console.log('         5. Market Admin:               admin@valence.local   / admin123');
+    console.log('       * Live Sign-Up with personal email (e.g. kapiljoshi9833@gmail.com) is 100% available!\n');
 
   } catch (err) {
     console.error('Error seeding demo data:', err);
